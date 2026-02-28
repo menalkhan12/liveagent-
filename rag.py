@@ -31,7 +31,7 @@ client = OpenAI(
 )
 
 # Best free model on OpenRouter - no daily limit, just per-minute rate limit
-MODEL = "openrouter/free"
+MODEL = "mistralai/mistral-7b-instruct:free"
 
 documents = []
 doc_names = []
@@ -250,7 +250,13 @@ CONTEXT:
             max_tokens=150
         )
 
-        reply = response.choices[0].message.content.strip()
+         reply = response.choices[0].message.content
+
+        if not reply or not reply.strip():
+            logger.warning("LLM returned empty reply, using fallback")
+            return ("I'm sorry, I couldn't process that. Please try asking again.", False)
+
+        reply = reply.strip()
         logger.info(f"LLM reply: {reply}")
 
         escalated = any(p in reply.lower() for p in [
