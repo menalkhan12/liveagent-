@@ -2,6 +2,7 @@ import os
 import json
 import logging
 from pathlib import Path
+from openai import OpenAI
 
 # Read .env file directly
 env_path = Path(__file__).parent / ".env"
@@ -13,18 +14,24 @@ if env_path.exists():
                 key, value = line.split("=", 1)
                 os.environ[key.strip()] = value.strip()
 
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = os.getenv("OPENROUTER_API_KEY")
 if not api_key:
-    raise ValueError(f"GEMINI_API_KEY not found in .env file at {env_path}")
+    raise ValueError(f"OPENROUTER_API_KEY not found. Please set it in .env or environment variables.")
 
-import google.generativeai as genai
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
 
-genai.configure(api_key=api_key)
-gemini = genai.GenerativeModel("gemini-2.0-flash-lite")
+# OpenRouter client - uses OpenAI-compatible API
+client = OpenAI(
+    api_key=api_key,
+    base_url="https://openrouter.ai/api/v1",
+    timeout=60.0
+)
+
+# Best free model on OpenRouter - no daily limit, just per-minute rate limit
+MODEL = "meta-llama/llama-3.1-8b-instruct:free"
 
 documents = []
 doc_names = []
@@ -129,7 +136,26 @@ def initialize_rag():
         raise
 
 
-MAX_CONTEXT_CHARS = 14000
+MAX_CONTEXT_CHARS = 10000
+
+
+def _fix_stt_errors(text):
+    """Fix common Whisper STT mishearings for IST domain."""
+    replacements = {
+        "mephee": "fee",
+        "mifi": "fee",
+        "mefi": "fee",
+        "harassment": "hostel",
+        "hostile": "hostel",
+        "hotel": "hostel",
+        "isp ": "IST ",
+        "isd ": "IST ",
+        "i.s.t": "IST",
+    }
+    lower = text.lower()
+    for wrong, correct in replacements.items():
+        lower = lower.replace(wrong, correct)
+    return lower
 
 
 def _expand_query_for_retrieval(query):
@@ -139,10 +165,10 @@ def _expand_query_for_retrieval(query):
         extra.append("fee structure tuition semester charges rupees")
     if any(w in q for w in ["merit", "closing", "aggregate", "calculate"]):
         extra.append("merit aggregate matric FSC entry test engineering")
-    if any(w in q for w in ["electrical", "electrical engineering"]) and any(w in q for w in ["program", "offer", "department"]):
+    if any(w in q for w in ["electrical"]) and any(w in q for w in ["program", "offer", "department"]):
         extra.append("electrical engineering department programs BS Computer Engineering")
-    if any(w in q for w in ["hostel", "harassment", "charges", "accommodation", "boarding"]):
-        extra.append("hostel charges accommodation transport fee")
+    if any(w in q for w in ["hostel", "accommodation", "boarding", "harassment"]):
+        extra.append("hostel charges accommodation fee")
     if any(w in q for w in ["transport", "bus", "shuttle"]):
         extra.append("transport bus shuttle routes fee charges")
     if "last year" in q:
@@ -186,7 +212,7 @@ def retrieve_context(query, top_k=6):
 
 
 def generate_answer(query):
-    # Fix common STT mishearings before processing
+    # Fix STT mishearings first
     query = _fix_stt_errors(query)
 
     context = retrieve_context(query)
@@ -197,35 +223,36 @@ def generate_answer(query):
             True
         )
 
-    prompt = f"""You are the official voice assistant for Institute of Space Technology (IST). You answer callers by phone.
+    system_prompt = f"""You are the official voice assistant for Institute of Space Technology (IST). You answer callers by phone.
 
 STRICT RULES:
 - Answer ONLY from the CONTEXT below. NEVER invent or add information.
-- Electrical Engineering department programs: Say ONLY "BS Electrical Engineering and BS Computer Engineering". Never mention others.
+- Electrical Engineering programs: Say ONLY "BS Electrical Engineering and BS Computer Engineering". Never mention others.
 - Questions NOT in CONTEXT: Say "I don't have that information. Please provide your phone number and we will contact you."
-- If caller challenges you: say "This information comes from the official sources of the university."
+- If caller challenges you: say "This information comes from official university sources."
 - Answer DIRECTLY with facts. NEVER say "check the file" or "visit the website".
 - Use amounts in lakh and thousand (e.g., 1 lakh 48 thousand rupees).
 - Keep responses 1-3 short sentences, conversational for speech.
-- For aggregate calculation: Formula is (Matric/1100 x 10) + (FSC/1100 x 40) + (EntryTest/100 x 50). Calculate immediately when marks are given.
+- For aggregate: Formula is (Matric/1100 x 10) + (FSC/1100 x 40) + (EntryTest/100 x 50). Calculate immediately when marks are given.
 - Be professional and friendly.
 
 CONTEXT:
-{context}
-
-User query: {query}
-
-Answer:"""
+{context}"""
 
     try:
-        response = gemini.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.2,
-                max_output_tokens=150
-            )
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": query}
+            ],
+            temperature=0.2,
+            max_tokens=150
         )
-        reply = response.text.strip()
+
+        reply = response.choices[0].message.content.strip()
+        logger.info(f"LLM reply: {reply}")
+
         escalated = any(p in reply.lower() for p in [
             "technical issue", "cannot find", "unable",
             "phone number", "provide your phone", "contact you"
@@ -234,44 +261,11 @@ Answer:"""
 
     except Exception as e:
         error_str = str(e).lower()
-        if "429" in error_str or "quota" in error_str or "rate" in error_str:
-            logger.error(f"Gemini rate limit: {e}")
-            return ("Our lines are busy right now. Please try again in a moment.", False)
+        if "429" in error_str or "rate" in error_str or "quota" in error_str:
+            logger.error(f"OpenRouter rate limit: {e}")
+            return ("Our lines are momentarily busy. Please try again in a few seconds.", False)
         if "timeout" in error_str:
-            logger.error(f"Gemini timeout: {e}")
+            logger.error(f"OpenRouter timeout: {e}")
             return ("Taking too long to respond. Please try again.", False)
-        logger.error(f"Gemini error: {e}")
+        logger.error(f"OpenRouter error: {e}")
         return ("Technical issue. Please provide your phone number.", True)
-                    continue
-                logger.error(f"Rate limit after 3 attempts: {e}")
-                return ("I'm temporarily busy. Please call back in a minute.", False)
-            if "timeout" in error_str:
-                logger.error(f"Gemini timeout: {e}")
-                return ("Taking too long to respond. Please try again.", False)
-            logger.error(f"Gemini error: {e}")
-            return ("Technical issue. Please provide your phone number.", True)
-
-    return ("I'm temporarily unavailable. Please call back in a moment.", False)
-
-
-def _fix_stt_errors(text):
-    """Fix common Whisper STT mishearings for IST domain."""
-    replacements = {
-        "mephee": "fee",
-        "mifi": "fee",
-        "mefi": "fee",
-        "the fee structure": "fee structure",
-        "harassment": "hostel",        # common mishearing
-        "hostile": "hostel",
-        "hotel": "hostel",
-        "isp ": "IST ",
-        "ist ": "IST ",
-        "space technology": "IST",
-        "institute of space": "IST",
-    }
-    lower = text.lower()
-    for wrong, correct in replacements.items():
-        lower = lower.replace(wrong, correct)
-    # Restore proper casing for IST
-    lower = lower.replace("ist", "IST")
-    return lower
