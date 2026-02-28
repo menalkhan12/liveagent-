@@ -1,8 +1,9 @@
 import os
 import json
+import time
 import logging
 from pathlib import Path
-import time
+
 # Read .env file directly
 env_path = Path(__file__).parent / ".env"
 if env_path.exists():
@@ -13,13 +14,9 @@ if env_path.exists():
                 key, value = line.split("=", 1)
                 os.environ[key.strip()] = value.strip()
 
-# Load .env for local dev; on Render use Dashboard → Environment → GEMINI_API_KEY
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    raise ValueError(
-        "GEMINI_API_KEY not found. Set it in .env (local) or Render Dashboard → "
-        "Environment → Add Environment Variable: GEMINI_API_KEY"
-    )
+    raise ValueError(f"GEMINI_API_KEY not found in .env file at {env_path}")
 
 import google.generativeai as genai
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -38,8 +35,8 @@ doc_vectors = None
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
 
+
 def _chunk_text(text, max_len=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
-    """Split text into overlapping chunks for better retrieval."""
     text = text.strip()
     if len(text) <= max_len:
         return [text] if text else []
@@ -54,7 +51,7 @@ def _chunk_text(text, max_len=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
                 chunks.append(current)
             if len(p) > max_len:
                 for i in range(0, len(p), max_len - overlap):
-                    chunk = p[i : i + max_len].strip()
+                    chunk = p[i: i + max_len].strip()
                     if chunk:
                         chunks.append(chunk)
                 current = ""
@@ -63,6 +60,7 @@ def _chunk_text(text, max_len=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
     if current:
         chunks.append(current)
     return chunks
+
 
 def load_documents():
     global documents, doc_names
@@ -80,7 +78,6 @@ def load_documents():
             file_path = os.path.join(data_folder, file)
             if not os.path.isfile(file_path):
                 continue
-
             try:
                 if file.endswith(".txt"):
                     with open(file_path, "r", encoding="utf-8") as f:
@@ -108,7 +105,8 @@ def load_documents():
         if documents:
             logger.info(f"Loaded {len(documents)} chunks from documents")
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"Error loading documents: {e}")
+
 
 def initialize_rag():
     global vectorizer, doc_vectors
@@ -131,24 +129,29 @@ def initialize_rag():
         logger.error(f"Error initializing RAG: {e}")
         raise
 
-# Gemini free tier is very generous (~1M tokens/min), so we can use more context
+
 MAX_CONTEXT_CHARS = 14000
 
+
 def _expand_query_for_retrieval(query):
-    """Add synonyms to help retrieval (STT errors, synonyms)."""
     q = query.lower()
     extra = []
-    if any(w in q for w in ["cost", "price", "tuition", "mifi", "fee structure"]):
-        extra.append("fee avionics aerospace semester")
+    if any(w in q for w in ["cost", "price", "tuition", "fee", "mifi", "mephee", "fees"]):
+        extra.append("fee structure tuition semester charges rupees")
     if any(w in q for w in ["merit", "closing", "aggregate", "calculate"]):
         extra.append("merit aggregate matric FSC entry test engineering")
-    if any(w in q for w in ["electrical", "electrical engineering"]) and ("program" in q or "offer" in q or "department" in q):
+    if any(w in q for w in ["electrical", "electrical engineering"]) and any(w in q for w in ["program", "offer", "department"]):
         extra.append("electrical engineering department programs BS Computer Engineering")
+    if any(w in q for w in ["hostel", "harassment", "charges", "accommodation", "boarding"]):
+        extra.append("hostel charges accommodation transport fee")
+    if any(w in q for w in ["transport", "bus", "shuttle"]):
+        extra.append("transport bus shuttle routes fee charges")
     if "last year" in q:
         extra.append("2024")
     if extra:
         return query + " " + " ".join(extra)
     return query
+
 
 def retrieve_context(query, top_k=6):
     global vectorizer, doc_vectors
@@ -182,28 +185,30 @@ def retrieve_context(query, top_k=6):
         logger.error(f"Error retrieving context: {e}")
         return ""
 
+
 def generate_answer(query):
-    try:
-        context = retrieve_context(query)
+    # Fix common STT mishearings before processing
+    query = _fix_stt_errors(query)
 
-        if not context.strip():
-            return (
-                "I don't have that information. Please provide your phone number and we will contact you.",
-                True
-            )
+    context = retrieve_context(query)
 
-        prompt = f"""You are the official voice assistant for Institute of Space Technology. You answer callers by phone.
+    if not context.strip():
+        return (
+            "I don't have that information. Please provide your phone number and we will contact you.",
+            True
+        )
+
+    prompt = f"""You are the official voice assistant for Institute of Space Technology (IST). You answer callers by phone.
 
 STRICT RULES:
-- Answer ONLY from the CONTEXT below. NEVER invent or add information. State ONLY what is explicitly in CONTEXT.
-- Electrical Engineering department programs: Say ONLY "BS Electrical Engineering and BS Computer Engineering". NEVER mention Communication Systems Engineering or any other program.
-- Simple yes/no questions NOT in CONTEXT: If the question can be answered yes/no and the answer is not in CONTEXT, say "No" or "I don't have that information." Never guess "Yes."
-- Complex questions NOT in CONTEXT: Say "I don't have that information. Please provide your phone number and we will contact you."
-- If the caller says "you're wrong" or challenges you: respond with "This information comes from the official sources of the university." Do not change your answer.
-- Answer DIRECTLY — state the figures and facts yourself. NEVER say "check the file" or "visit the website".
+- Answer ONLY from the CONTEXT below. NEVER invent or add information.
+- Electrical Engineering department programs: Say ONLY "BS Electrical Engineering and BS Computer Engineering". Never mention others.
+- Questions NOT in CONTEXT: Say "I don't have that information. Please provide your phone number and we will contact you."
+- If caller challenges you: say "This information comes from the official sources of the university."
+- Answer DIRECTLY with facts. NEVER say "check the file" or "visit the website".
 - Use amounts in lakh and thousand (e.g., 1 lakh 48 thousand rupees).
-- Keep responses 1-3 short sentences, conversational and natural for speech.
-- For aggregate: When user gives Matric, FSC, and Entry Test marks for engineering, CALCULATE immediately. Formula: (Matric/1100x10)+(FSC/1100x40)+(Entry/100x50). Give ONLY the number. Example: "Your aggregate is about 49.1."
+- Keep responses 1-3 short sentences, conversational for speech.
+- For aggregate calculation: Formula is (Matric/1100 x 10) + (FSC/1100 x 40) + (EntryTest/100 x 50). Calculate immediately when marks are given.
 - Be professional and friendly.
 
 CONTEXT:
@@ -213,44 +218,8 @@ User query: {query}
 
 Answer:"""
 
-        response = gemini.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.2,
-                max_output_tokens=150
-            )
-        )
-
-        reply = response.text.strip()
-        escalated = any(p in reply.lower() for p in [
-            "technical issue", "cannot find", "unable",
-            "phone number", "provide your phone", "contact you"
-        ])
-
-        return reply, escalated
-
-    except Exception as e:
-        error_str = str(e).lower()
-        if "429" in error_str or "quota" in error_str or "rate" in error_str:
-            logger.error(f"Gemini rate limit hit: {e}")
-            return ("I'm receiving too many requests right now. Please try again in a moment.", False)
-        if "timeout" in error_str:
-            logger.error(f"Gemini timeout: {e}")
-            return ("Taking too long to respond. Please try again.", False)
-        logger.error(f"Gemini error: {e}")
-        return (
-            "Technical issue. Let me connect you with admissions. Please provide your phone number.",
-            True
-        )
-import time
-
-def generate_answer(query):
-    for attempt in range(3):  # retry up to 3 times
+    for attempt in range(3):
         try:
-            context = retrieve_context(query)
-            if not context.strip():
-                return ("I don't have that information. Please provide your phone number.", True)
-
             response = gemini.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
@@ -258,16 +227,51 @@ def generate_answer(query):
                     max_output_tokens=150
                 )
             )
-            return response.text.strip(), False
+
+            reply = response.text.strip()
+            escalated = any(p in reply.lower() for p in [
+                "technical issue", "cannot find", "unable",
+                "phone number", "provide your phone", "contact you"
+            ])
+            return reply, escalated
 
         except Exception as e:
             error_str = str(e).lower()
-            if "429" in error_str or "quota" in error_str:
+            if "429" in error_str or "quota" in error_str or "rate" in error_str:
                 if attempt < 2:
-                    wait = 30 * (attempt + 1)  # wait 30s, then 60s
-                    logger.warning(f"Rate limit hit, retrying in {wait}s...")
+                    wait = 30 * (attempt + 1)
+                    logger.warning(f"Rate limit hit, retrying in {wait}s (attempt {attempt+1})")
                     time.sleep(wait)
                     continue
-                return ("I'm temporarily unavailable. Please call back in a moment.", False)
+                logger.error(f"Rate limit after 3 attempts: {e}")
+                return ("I'm temporarily busy. Please call back in a minute.", False)
+            if "timeout" in error_str:
+                logger.error(f"Gemini timeout: {e}")
+                return ("Taking too long to respond. Please try again.", False)
             logger.error(f"Gemini error: {e}")
             return ("Technical issue. Please provide your phone number.", True)
+
+    return ("I'm temporarily unavailable. Please call back in a moment.", False)
+
+
+def _fix_stt_errors(text):
+    """Fix common Whisper STT mishearings for IST domain."""
+    replacements = {
+        "mephee": "fee",
+        "mifi": "fee",
+        "mefi": "fee",
+        "the fee structure": "fee structure",
+        "harassment": "hostel",        # common mishearing
+        "hostile": "hostel",
+        "hotel": "hostel",
+        "isp ": "IST ",
+        "ist ": "IST ",
+        "space technology": "IST",
+        "institute of space": "IST",
+    }
+    lower = text.lower()
+    for wrong, correct in replacements.items():
+        lower = lower.replace(wrong, correct)
+    # Restore proper casing for IST
+    lower = lower.replace("ist", "IST")
+    return lower
