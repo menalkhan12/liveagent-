@@ -29,7 +29,12 @@ client = OpenAI(
     timeout=60.0
 )
 
-MODEL = "mistralai/mistral-7b-instruct:free"
+# Multiple fallback models - if one fails, tries the next
+MODELS = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "mistralai/mistral-small-3.1-24b-instruct:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+]
 
 documents = []
 doc_names = []
@@ -235,39 +240,37 @@ STRICT RULES:
 CONTEXT:
 {context}"""
 
-    try:
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query}
-            ],
-            temperature=0.2,
-            max_tokens=150
-        )
+    for model in MODELS:
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": query}
+                ],
+                temperature=0.2,
+                max_tokens=150
+            )
 
-        reply = response.choices[0].message.content
+            reply = response.choices[0].message.content
 
-        if not reply or not reply.strip():
-            logger.warning("LLM returned empty reply, using fallback")
-            return ("I'm sorry, I couldn't process that. Please try asking again.", False)
+            if not reply or not reply.strip():
+                logger.warning(f"Empty reply from {model}, trying next model...")
+                continue
 
-        reply = reply.strip()
-        logger.info(f"LLM reply: {reply}")
+            reply = reply.strip()
+            logger.info(f"LLM reply from {model}: {reply}")
 
-        escalated = any(p in reply.lower() for p in [
-            "technical issue", "cannot find", "unable",
-            "phone number", "provide your phone", "contact you"
-        ])
-        return reply, escalated
+            escalated = any(p in reply.lower() for p in [
+                "technical issue", "cannot find", "unable",
+                "phone number", "provide your phone", "contact you"
+            ])
+            return reply, escalated
 
-    except Exception as e:
-        error_str = str(e).lower()
-        if "429" in error_str or "rate" in error_str or "quota" in error_str:
-            logger.error(f"OpenRouter rate limit: {e}")
-            return ("Our lines are momentarily busy. Please try again in a few seconds.", False)
-        if "timeout" in error_str:
-            logger.error(f"OpenRouter timeout: {e}")
-            return ("Taking too long to respond. Please try again.", False)
-        logger.error(f"OpenRouter error: {e}")
-        return ("Technical issue. Please provide your phone number.", True)
+        except Exception as e:
+            logger.error(f"Model {model} failed: {e}, trying next model...")
+            continue
+
+    # All models failed
+    logger.error("All models failed")
+    return ("I'm sorry, I'm having technical difficulties. Please provide your phone number and we will call you back.", True)
