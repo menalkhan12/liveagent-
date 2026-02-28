@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from pathlib import Path
-
+import time
 # Read .env file directly
 env_path = Path(__file__).parent / ".env"
 if env_path.exists():
@@ -28,7 +28,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 logger = logging.getLogger(__name__)
 
 genai.configure(api_key=api_key)
-gemini = genai.GenerativeModel("gemini-2.0-flash")
+gemini = genai.GenerativeModel("gemini-2.0-flash-lite")
 
 documents = []
 doc_names = []
@@ -242,3 +242,32 @@ Answer:"""
             "Technical issue. Let me connect you with admissions. Please provide your phone number.",
             True
         )
+import time
+
+def generate_answer(query):
+    for attempt in range(3):  # retry up to 3 times
+        try:
+            context = retrieve_context(query)
+            if not context.strip():
+                return ("I don't have that information. Please provide your phone number.", True)
+
+            response = gemini.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.2,
+                    max_output_tokens=150
+                )
+            )
+            return response.text.strip(), False
+
+        except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "quota" in error_str:
+                if attempt < 2:
+                    wait = 30 * (attempt + 1)  # wait 30s, then 60s
+                    logger.warning(f"Rate limit hit, retrying in {wait}s...")
+                    time.sleep(wait)
+                    continue
+                return ("I'm temporarily unavailable. Please call back in a moment.", False)
+            logger.error(f"Gemini error: {e}")
+            return ("Technical issue. Please provide your phone number.", True)
