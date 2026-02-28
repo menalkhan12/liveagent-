@@ -16,21 +16,19 @@ if env_path.exists():
 
 api_key = os.getenv("OPENROUTER_API_KEY")
 if not api_key:
-    raise ValueError(f"OPENROUTER_API_KEY not found. Please set it in .env or environment variables.")
+    raise ValueError("OPENROUTER_API_KEY not found. Please set it in .env or environment variables.")
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
 
-# OpenRouter client - uses OpenAI-compatible API
 client = OpenAI(
     api_key=api_key,
     base_url="https://openrouter.ai/api/v1",
     timeout=60.0
 )
 
-# Best free model on OpenRouter - no daily limit, just per-minute rate limit
 MODEL = "mistralai/mistral-7b-instruct:free"
 
 documents = []
@@ -140,7 +138,6 @@ MAX_CONTEXT_CHARS = 10000
 
 
 def _fix_stt_errors(text):
-    """Fix common Whisper STT mishearings for IST domain."""
     replacements = {
         "mephee": "fee",
         "mifi": "fee",
@@ -161,13 +158,13 @@ def _fix_stt_errors(text):
 def _expand_query_for_retrieval(query):
     q = query.lower()
     extra = []
-    if any(w in q for w in ["cost", "price", "tuition", "fee", "mifi", "mephee", "fees"]):
+    if any(w in q for w in ["cost", "price", "tuition", "fee", "fees"]):
         extra.append("fee structure tuition semester charges rupees")
     if any(w in q for w in ["merit", "closing", "aggregate", "calculate"]):
         extra.append("merit aggregate matric FSC entry test engineering")
     if any(w in q for w in ["electrical"]) and any(w in q for w in ["program", "offer", "department"]):
         extra.append("electrical engineering department programs BS Computer Engineering")
-    if any(w in q for w in ["hostel", "accommodation", "boarding", "harassment"]):
+    if any(w in q for w in ["hostel", "accommodation", "boarding"]):
         extra.append("hostel charges accommodation fee")
     if any(w in q for w in ["transport", "bus", "shuttle"]):
         extra.append("transport bus shuttle routes fee charges")
@@ -212,7 +209,6 @@ def retrieve_context(query, top_k=6):
 
 
 def generate_answer(query):
-    # Fix STT mishearings first
     query = _fix_stt_errors(query)
 
     context = retrieve_context(query)
@@ -250,7 +246,7 @@ CONTEXT:
             max_tokens=150
         )
 
-         reply = response.choices[0].message.content
+        reply = response.choices[0].message.content
 
         if not reply or not reply.strip():
             logger.warning("LLM returned empty reply, using fallback")
