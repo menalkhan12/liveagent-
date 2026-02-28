@@ -93,6 +93,13 @@ def query():
             if os.path.exists(temp_path):
                 os.remove(temp_path)
         
+        # Skip empty or very short transcription
+        if not user_text or len(user_text.strip()) < 3:
+            return jsonify({
+                "error": "Could not hear you clearly. Please speak again.",
+                "user_text": user_text or ""
+            }), 200
+        
         # Check if user provided phone number
         phone = detect_phone_number(user_text)
         if phone:
@@ -102,7 +109,10 @@ def query():
             audio_url = generate_tts(reply, session_id)
             update_call_record(session_id, user_text, reply, escalated=True, phone=phone)
             logger.info(f"Phone number detected: {phone}")
-            return jsonify({"audio_url": audio_url}), 200
+            payload = {"user_text": user_text, "response": reply}
+            if audio_url:
+                payload["audio_url"] = audio_url
+            return jsonify(payload), 200
         
         # Generate answer using RAG
         reply, escalated = generate_answer(user_text)
@@ -113,7 +123,10 @@ def query():
         
         logger.info(f"Agent response [{session_id}]: {reply} (escalated: {escalated})")
         
-        return jsonify({"audio_url": audio_url}), 200
+        payload = {"user_text": user_text, "response": reply}
+        if audio_url:
+            payload["audio_url"] = audio_url
+        return jsonify(payload), 200
     
     except Exception as e:
         logger.error(f"Error processing query: {e}")

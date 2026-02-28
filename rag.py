@@ -22,7 +22,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
-client = Groq(api_key=api_key)
+client = Groq(api_key=api_key, timeout=30.0)
 
 documents = []
 doc_names = []

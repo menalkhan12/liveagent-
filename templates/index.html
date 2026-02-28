@@ -347,26 +347,78 @@
             if (!sessionId || !isCallActive) return;
             requestInFlight = true;
 
+            const statusEl = document.getElementById('transcriptStatus');
+            if (statusEl) statusEl.innerHTML = '<p class="loading"><span class="spinner"></span>Processing your question...</p>';
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 50000);
+
+            const longMsgId = setTimeout(() => {
+                if (statusEl && requestInFlight) statusEl.innerHTML = '<p class="loading"><span class="spinner"></span>Taking longer than usual...</p>';
+            }, 12000);
+
             try {
                 const formData = new FormData();
                 formData.append('session_id', sessionId);
                 formData.append('audio', audioBlob, 'audio.wav');
 
-                const statusEl = document.getElementById('transcriptStatus');
-                if (statusEl) statusEl.innerHTML = '<p class="loading"><span class="spinner"></span>Processing your question...</p>';
-
-                const response = await fetch('/api/query', { method: 'POST', body: formData });
+                const response = await fetch('/api/query', { method: 'POST', body: formData, signal: controller.signal });
+                clearTimeout(timeoutId);
+                clearTimeout(longMsgId);
                 const data = await response.json();
+
+                if (!response.ok) {
+                    clearTimeout(timeoutId);
+                    clearTimeout(longMsgId);
+                    const msg = data.error || 'Something went wrong. Please try again.';
+                    if (statusEl) statusEl.innerHTML = '';
+                    const errDiv = document.createElement('div');
+                    errDiv.className = 'message';
+                    errDiv.style.background = 'rgba(248,113,113,0.15)';
+                    errDiv.style.borderColor = 'rgba(248,113,113,0.3)';
+                    errDiv.textContent = '⚠️ ' + msg;
+                    document.getElementById('transcript').appendChild(errDiv);
+                    if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your question again...</p>';
+                    requestInFlight = false;
+                    return;
+                }
+
+                if (data.error) {
+                    clearTimeout(timeoutId);
+                    clearTimeout(longMsgId);
+                    if (statusEl) statusEl.innerHTML = '';
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'message user-message';
+                    userDiv.textContent = '🎤 ' + (data.user_text || 'Your question');
+                    document.getElementById('transcript').appendChild(userDiv);
+                    const errDiv = document.createElement('div');
+                    errDiv.className = 'message agent-message';
+                    errDiv.textContent = '🤖 ' + data.error;
+                    document.getElementById('transcript').appendChild(errDiv);
+                    if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your question again...</p>';
+                    requestInFlight = false;
+                    return;
+                }
+
+                if (data.user_text) {
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'message user-message';
+                    userDiv.textContent = '🎤 ' + data.user_text;
+                    document.getElementById('transcript').appendChild(userDiv);
+                }
 
                 if (data.audio_url) {
                     if (!isCallActive) { requestInFlight = false; return; }
-                    const statusEl = document.getElementById('transcriptStatus');
                     if (statusEl) statusEl.innerHTML = '';
                     const agentDiv = document.createElement('div');
                     agentDiv.className = 'message agent-message';
-                    agentDiv.textContent = '🤖 [Playing response...]';
+                    agentDiv.textContent = '🤖 ' + (data.response || '[Playing response...]');
                     document.getElementById('transcript').appendChild(agentDiv);
                     currentAgentAudio = new Audio(data.audio_url);
+                    currentAgentAudio.onerror = () => {
+                        requestInFlight = false;
+                        if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your next question...</p>';
+                    };
                     currentAgentAudio.onended = () => {
                         if (!isCallActive) return;
                         currentAgentAudio = null;
@@ -376,18 +428,29 @@
                     };
                     currentAgentAudio.play();
                 } else if (data.response) {
-                    const statusEl = document.getElementById('transcriptStatus');
                     if (statusEl) statusEl.innerHTML = '';
                     const agentDiv = document.createElement('div');
                     agentDiv.className = 'message agent-message';
                     agentDiv.textContent = '🤖 ' + data.response;
                     document.getElementById('transcript').appendChild(agentDiv);
-                    const s = document.getElementById('transcriptStatus');
-                    if (s) s.innerHTML = '<p class="loading">Speak your next question...</p>';
+                    if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your next question...</p>';
+                    requestInFlight = false;
+                } else {
+                    if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your next question...</p>';
                     requestInFlight = false;
                 }
             } catch (error) {
-                document.getElementById('transcript').innerHTML += `<div class="message" style="background: rgba(248,113,113,0.15); border-color: rgba(248,113,113,0.3);">⚠️ ${error.message}</div>`;
+                clearTimeout(timeoutId);
+                clearTimeout(longMsgId);
+                if (statusEl) statusEl.innerHTML = '';
+                const errDiv = document.createElement('div');
+                errDiv.className = 'message';
+                errDiv.style.background = 'rgba(248,113,113,0.15)';
+                errDiv.style.borderColor = 'rgba(248,113,113,0.3)';
+                const msg = (error.name === 'AbortError') ? 'Request timed out. Please try again.' : error.message;
+                errDiv.textContent = '⚠️ ' + msg;
+                document.getElementById('transcript').appendChild(errDiv);
+                if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your question again...</p>';
                 requestInFlight = false;
             }
         }
