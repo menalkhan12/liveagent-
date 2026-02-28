@@ -13,16 +13,18 @@ if env_path.exists():
                 key, value = line.split("=", 1)
                 os.environ[key.strip()] = value.strip()
 
-api_key = os.getenv("GROQ_API_KEY")
+api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    raise ValueError(f"GROQ_API_KEY not found in .env file at {env_path}")
+    raise ValueError(f"GEMINI_API_KEY not found in .env file at {env_path}")
 
-from groq import Groq
+import google.generativeai as genai
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
-client = Groq(api_key=api_key, timeout=30.0)
+
+genai.configure(api_key=api_key)
+gemini = genai.GenerativeModel("gemini-2.0-flash")
 
 documents = []
 doc_names = []
@@ -61,20 +63,20 @@ def _chunk_text(text, max_len=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
 def load_documents():
     global documents, doc_names
     data_folder = "data"
-    
+
     if not os.path.exists(data_folder):
         os.makedirs(data_folder)
         return
-    
+
     documents = []
     doc_names = []
-    
+
     try:
         for file in os.listdir(data_folder):
             file_path = os.path.join(data_folder, file)
             if not os.path.isfile(file_path):
                 continue
-            
+
             try:
                 if file.endswith(".txt"):
                     with open(file_path, "r", encoding="utf-8") as f:
@@ -85,7 +87,7 @@ def load_documents():
                                     documents.append(chunk)
                                     doc_names.append(file)
                             logger.info(f"Loaded: {file}")
-                
+
                 elif file.endswith(".json"):
                     with open(file_path, "r", encoding="utf-8") as f:
                         json_data = json.load(f)
@@ -98,7 +100,7 @@ def load_documents():
                             logger.info(f"Loaded: {file}")
             except Exception as e:
                 logger.error(f"Error loading {file}: {e}")
-        
+
         if documents:
             logger.info(f"Loaded {len(documents)} chunks from documents")
     except Exception as e:
@@ -107,11 +109,11 @@ def load_documents():
 def initialize_rag():
     global vectorizer, doc_vectors
     load_documents()
-    
+
     if not documents:
-        logger.warning("No documents")
+        logger.warning("No documents found")
         return
-    
+
     try:
         vectorizer = TfidfVectorizer(
             stop_words="english",
@@ -120,19 +122,19 @@ def initialize_rag():
             max_df=0.95
         )
         doc_vectors = vectorizer.fit_transform(documents)
-        logger.info("RAG initialized")
+        logger.info("RAG initialized successfully")
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"Error initializing RAG: {e}")
         raise
 
-# ~4 chars/token; free tier TPM 6000 - reserve ~500 for prompt+query+response
+# Gemini free tier is very generous (~1M tokens/min), so we can use more context
 MAX_CONTEXT_CHARS = 14000
 
 def _expand_query_for_retrieval(query):
-    """Add synonyms to help retrieval (STT errors, synonyms). Does not change model output."""
+    """Add synonyms to help retrieval (STT errors, synonyms)."""
     q = query.lower()
     extra = []
-    if any(w in q for w in ["cost", "price", "tuition", "mifi", "mifi structure", "fee structure"]):
+    if any(w in q for w in ["cost", "price", "tuition", "mifi", "fee structure"]):
         extra.append("fee avionics aerospace semester")
     if any(w in q for w in ["merit", "closing", "aggregate", "calculate"]):
         extra.append("merit aggregate matric FSC entry test engineering")
@@ -146,16 +148,16 @@ def _expand_query_for_retrieval(query):
 
 def retrieve_context(query, top_k=6):
     global vectorizer, doc_vectors
-    
+
     if vectorizer is None or doc_vectors is None:
         return ""
-    
+
     try:
         expanded = _expand_query_for_retrieval(query)
         query_vec = vectorizer.transform([expanded])
         similarities = cosine_similarity(query_vec, doc_vectors).flatten()
         top_indices = similarities.argsort()[-top_k:][::-1]
-        
+
         context_parts = []
         total_len = 0
         for idx in top_indices:
@@ -163,30 +165,30 @@ def retrieve_context(query, top_k=6):
                 continue
             chunk = f"[{doc_names[idx]}]\n{documents[idx]}"
             if total_len + len(chunk) > MAX_CONTEXT_CHARS:
-                remain = MAX_CONTEXT_CHARS - total_len - 80  # reserve for "..."
+                remain = MAX_CONTEXT_CHARS - total_len - 80
                 if remain > 500:
                     chunk = chunk[:remain] + "\n...[truncated]"
                     context_parts.append(chunk)
                 break
             context_parts.append(chunk)
             total_len += len(chunk)
-        
+
         return "\n\n---\n\n".join(context_parts)
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"Error retrieving context: {e}")
         return ""
 
 def generate_answer(query):
     try:
         context = retrieve_context(query)
-        
+
         if not context.strip():
             return (
                 "I don't have that information. Please provide your phone number and we will contact you.",
                 True
             )
-        
-        system_prompt = f"""You are the official voice assistant for Institute of Space Technology. You answer callers by phone.
+
+        prompt = f"""You are the official voice assistant for Institute of Space Technology. You answer callers by phone.
 
 STRICT RULES:
 - Answer ONLY from the CONTEXT below. NEVER invent or add information. State ONLY what is explicitly in CONTEXT.
@@ -194,33 +196,45 @@ STRICT RULES:
 - Simple yes/no questions NOT in CONTEXT: If the question can be answered yes/no and the answer is not in CONTEXT, say "No" or "I don't have that information." Never guess "Yes."
 - Complex questions NOT in CONTEXT: Say "I don't have that information. Please provide your phone number and we will contact you."
 - If the caller says "you're wrong" or challenges you: respond with "This information comes from the official sources of the university." Do not change your answer.
-- Answer DIRECTLY—state the figures and facts yourself. NEVER say "check the file" or "visit the website".
+- Answer DIRECTLY — state the figures and facts yourself. NEVER say "check the file" or "visit the website".
 - Use amounts in lakh and thousand (e.g., 1 lakh 48 thousand rupees).
 - Keep responses 1-3 short sentences, conversational and natural for speech.
-- For aggregate: When user gives Matric, FSC, and Entry Test marks for engineering, CALCULATE immediately. Formula: (Matric/1100×10)+(FSC/1100×40)+(Entry/100×50). Give ONLY the number. Example: "Your aggregate is about 49.1."
+- For aggregate: When user gives Matric, FSC, and Entry Test marks for engineering, CALCULATE immediately. Formula: (Matric/1100x10)+(FSC/1100x40)+(Entry/100x50). Give ONLY the number. Example: "Your aggregate is about 49.1."
 - Be professional and friendly.
 
 CONTEXT:
-{context}"""
+{context}
 
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query}
-            ],
-            temperature=0.2,
-            max_tokens=150
+User query: {query}
+
+Answer:"""
+
+        response = gemini.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.2,
+                max_output_tokens=150
+            )
         )
-        
-        reply = response.choices[0].message.content.strip()
-        escalated = any(p in reply.lower() for p in ["technical issue", "cannot find", "unable", "phone number", "provide your phone"])
-        
+
+        reply = response.text.strip()
+        escalated = any(p in reply.lower() for p in [
+            "technical issue", "cannot find", "unable",
+            "phone number", "provide your phone", "contact you"
+        ])
+
         return reply, escalated
-    
+
     except Exception as e:
-        logger.error(f"Error: {e}")
+        error_str = str(e).lower()
+        if "429" in error_str or "quota" in error_str or "rate" in error_str:
+            logger.error(f"Gemini rate limit hit: {e}")
+            return ("I'm receiving too many requests right now. Please try again in a moment.", False)
+        if "timeout" in error_str:
+            logger.error(f"Gemini timeout: {e}")
+            return ("Taking too long to respond. Please try again.", False)
+        logger.error(f"Gemini error: {e}")
         return (
-            "Technical issue. Let me connect you with admissions. Phone number?",
+            "Technical issue. Let me connect you with admissions. Please provide your phone number.",
             True
         )

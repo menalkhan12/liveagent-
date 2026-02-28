@@ -3,11 +3,11 @@ import threading
 import uuid
 import os
 import logging
-
 import edge_tts
 
 logger = logging.getLogger(__name__)
 
+# Natural neural voice (Microsoft Edge TTS)
 VOICE = "en-US-JennyNeural"
 
 def generate_tts(text, session_id):
@@ -19,6 +19,8 @@ def generate_tts(text, session_id):
             communicate = edge_tts.Communicate(text, VOICE, rate="+0%", pitch="+0Hz")
             await communicate.save(filename)
 
+        # Gunicorn workers may already have a running event loop.
+        # Always spin up a fresh loop in a dedicated thread to avoid conflicts.
         result = {"error": None}
 
         def run_in_thread():
@@ -33,7 +35,7 @@ def generate_tts(text, session_id):
 
         t = threading.Thread(target=run_in_thread)
         t.start()
-        t.join(timeout=25)
+        t.join(timeout=25)  # Don't wait forever
 
         if t.is_alive():
             logger.error("TTS timed out")
