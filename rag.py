@@ -14,15 +14,13 @@ if env_path.exists():
                 os.environ[key.strip()] = value.strip()
 
 api_key = os.getenv("GROQ_API_KEY")
-if not api_key:
-    raise ValueError(f"GROQ_API_KEY not found in .env file at {env_path}")
 
 from groq import Groq
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
-client = Groq(api_key=api_key)
+client = Groq(api_key=api_key) if api_key else None
 
 documents = []
 doc_names = []
@@ -106,6 +104,8 @@ def load_documents():
 
 def initialize_rag():
     global vectorizer, doc_vectors
+    if not api_key or not client:
+        raise ValueError("GROQ_API_KEY not set. Add it in Render Environment variables.")
     load_documents()
     
     if not documents:
@@ -185,6 +185,8 @@ STRICT RULES:
 CONTEXT:
 {context}"""
 
+        if not client:
+            raise ValueError("GROQ_API_KEY not set. Add it in Render Environment variables.")
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
