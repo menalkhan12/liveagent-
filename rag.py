@@ -13,9 +13,13 @@ if env_path.exists():
                 key, value = line.split("=", 1)
                 os.environ[key.strip()] = value.strip()
 
+# Load .env for local dev; on Render use Dashboard → Environment → GEMINI_API_KEY
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    raise ValueError(f"GEMINI_API_KEY not found in .env file at {env_path}")
+    raise ValueError(
+        "GEMINI_API_KEY not found. Set it in .env (local) or Render Dashboard → "
+        "Environment → Add Environment Variable: GEMINI_API_KEY"
+    )
 
 import google.generativeai as genai
 from sklearn.feature_extraction.text import TfidfVectorizer
