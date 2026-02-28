@@ -13,7 +13,7 @@ Institute of Space Technology voice agent - admissions inquiry assistant with RA
    - **Branch:** main
    - **Runtime:** Python 3
    - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn app:app` (or leave blank to use Procfile)
+   - **Start Command:** `gunicorn app:app --bind 0.0.0.0:$PORT`
 5. Click **Advanced** → **Add Environment Variable**:
    - `GROQ_API_KEY` = your Groq API key (required)
    - `LIVEKIT_API_KEY` = your LiveKit key (if using LiveKit)
