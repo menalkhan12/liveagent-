@@ -2,7 +2,6 @@ import os
 import json
 import logging
 from pathlib import Path
-from openai import OpenAI
 
 # Read .env file directly
 env_path = Path(__file__).parent / ".env"
@@ -14,26 +13,22 @@ if env_path.exists():
                 key, value = line.split("=", 1)
                 os.environ[key.strip()] = value.strip()
 
-api_key = os.getenv("OPENROUTER_API_KEY")
+api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
-    raise ValueError("OPENROUTER_API_KEY not found. Please set it in .env or environment variables.")
+    raise ValueError("GROQ_API_KEY not found. Set it in .env or Render Environment Variables.")
 
+from groq import Groq
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
 
-client = OpenAI(
-    api_key=api_key,
-    base_url="https://openrouter.ai/api/v1",
-    timeout=60.0
-)
+client = Groq(api_key=api_key, timeout=45.0)
 
-# Multiple fallback models - if one fails, tries the next
+# Groq free tier: 30 RPM, 6K TPM, 500K TPD for 8B; 30 RPM, 12K TPM, 100K TPD for 70B
 MODELS = [
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "mistralai/mistral-small-3.1-24b-instruct:free",
-    "deepseek/deepseek-chat-v3-0324:free",
+    "llama-3.1-8b-instant",      # Fast, generous limits
+    "llama-3.3-70b-versatile",  # Fallback if 8B fails
 ]
 
 documents = []
@@ -273,4 +268,7 @@ CONTEXT:
 
     # All models failed
     logger.error("All models failed")
-    return ("I'm sorry, I'm having technical difficulties. Please provide your phone number and we will call you back.", True)
+    return (
+        "I'm sorry, I'm having technical difficulties. Please provide your phone number and we will call you back.",
+        True
+    )
