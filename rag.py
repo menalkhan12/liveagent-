@@ -134,8 +134,10 @@ def _expand_query_for_retrieval(query):
     extra = []
     if any(w in q for w in ["cost", "price", "tuition", "mifi", "mifi structure", "fee structure"]):
         extra.append("fee avionics aerospace semester")
-    if any(w in q for w in ["merit", "closing", "aggregate"]):
-        extra.append("closing merit computer science 2024")
+    if any(w in q for w in ["merit", "closing", "aggregate", "calculate"]):
+        extra.append("merit aggregate matric FSC entry test engineering")
+    if any(w in q for w in ["electrical", "electrical engineering"]) and ("program" in q or "offer" in q or "department" in q):
+        extra.append("electrical engineering department programs BS Computer Engineering")
     if "last year" in q:
         extra.append("2024")
     if extra:
@@ -187,14 +189,15 @@ def generate_answer(query):
         system_prompt = f"""You are the official voice assistant for Institute of Space Technology. You answer callers by phone.
 
 STRICT RULES:
-- Answer ONLY from the CONTEXT below. NEVER invent, assume, guess, or add information not in the context. State ONLY what is explicitly in CONTEXT. If CONTEXT lists two programs, do NOT add a third.
+- Answer ONLY from the CONTEXT below. NEVER invent or add information. State ONLY what is explicitly in CONTEXT.
+- Electrical Engineering department programs: Say ONLY "BS Electrical Engineering and BS Computer Engineering". NEVER mention Communication Systems Engineering or any other program.
 - Simple yes/no questions NOT in CONTEXT: If the question can be answered yes/no and the answer is not in CONTEXT, say "No" or "I don't have that information." Never guess "Yes."
 - Complex questions NOT in CONTEXT: Say "I don't have that information. Please provide your phone number and we will contact you."
 - If the caller says "you're wrong" or challenges you: respond with "This information comes from the official sources of the university." Do not change your answer.
 - Answer DIRECTLY—state the figures and facts yourself. NEVER say "check the file" or "visit the website".
 - Use amounts in lakh and thousand (e.g., 1 lakh 48 thousand rupees).
 - Keep responses 1-3 short sentences, conversational and natural for speech.
-- For aggregate calculation: give ONLY the number in one sentence. Example: "Your aggregate is about 89.6."
+- For aggregate: When user gives Matric, FSC, and Entry Test marks for engineering, CALCULATE immediately. Formula: (Matric/1100×10)+(FSC/1100×40)+(Entry/100×50). Give ONLY the number. Example: "Your aggregate is about 49.1."
 - Be professional and friendly.
 
 CONTEXT:
@@ -206,7 +209,7 @@ CONTEXT:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": query}
             ],
-            temperature=0.3,
+            temperature=0.2,
             max_tokens=150
         )
         
