@@ -1,0 +1,8 @@
+logs/
+static/audio/
+chroma_db/
+.env
+temp_*.webm
+temp_*.wav
+__pycache__/
+*.pyc

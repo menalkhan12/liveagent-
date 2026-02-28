@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IST Voice Assistant | Institute of Space Technology</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-elevated: #334155;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #34d399;
+            --danger: #f87171;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: rgba(255,255,255,0.08);
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            background: var(--bg-dark);
+            background-image: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(56,189,248,0.15), transparent),
+                             radial-gradient(ellipse 60% 40% at 100% 100%, rgba(34,211,238,0.08), transparent);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: var(--text);
+        }
+        .container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 560px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--accent), #0ea5e9);
+            border-radius: 16px;
+            font-size: 28px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 24px rgba(56,189,248,0.3);
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+            letter-spacing: -0.02em;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .status {
+            padding: 16px 20px;
+            background: var(--bg-elevated);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            color: var(--success);
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status.recording {
+            color: var(--accent);
+            border-color: rgba(56,189,248,0.3);
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        .status.recording .status-dot {
+            animation: pulse-dot 1.2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        button {
+            flex: 1;
+            padding: 16px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        #startBtn {
+            background: linear-gradient(135deg, var(--success), #10b981);
+            color: white;
+            box-shadow: 0 4px 14px rgba(52,211,153,0.4);
+        }
+        #startBtn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(52,211,153,0.5);
+        }
+        #startBtn:disabled {
+            background: var(--bg-elevated);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        #endBtn {
+            background: linear-gradient(135deg, var(--danger), #ef4444);
+            color: white;
+            box-shadow: 0 4px 14px rgba(248,113,113,0.3);
+        }
+        #endBtn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(248,113,113,0.4);
+        }
+        #endBtn:disabled {
+            background: var(--bg-elevated);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .transcript {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            min-height: 180px;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        .transcript::-webkit-scrollbar { width: 6px; }
+        .transcript::-webkit-scrollbar-track { background: transparent; }
+        .transcript::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 3px; }
+        .message {
+            margin: 12px 0;
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .user-message {
+            background: rgba(56,189,248,0.12);
+            border: 1px solid rgba(56,189,248,0.2);
+            margin-left: 24px;
+        }
+        .agent-message {
+            background: rgba(52,211,153,0.1);
+            border: 1px solid rgba(52,211,153,0.15);
+            margin-right: 24px;
+        }
+        .loading {
+            color: var(--text-muted);
+            font-size: 13px;
+            font-style: italic;
+        }
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--bg-elevated);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .info {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .info span { display: flex; align-items: center; gap: 6px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🎙️</div>
+            <h1>Institute of Space Technology</h1>
+            <p class="subtitle">Voice Assistant — Speak naturally, interrupt anytime</p>
+        </div>
+
+        <div class="status" id="statusDiv">
+            <span class="status-dot"></span>
+            <strong>Ready</strong> — Click Start to begin
+        </div>
+
+        <div class="button-group">
+            <button id="startBtn" onclick="startCall()">Start Call</button>
+            <button id="endBtn" onclick="endCall()" disabled>End Call</button>
+        </div>
+
+        <div class="transcript" id="transcript">
+            <p class="loading">Click "Start Call" to speak with the IST assistant. You can interrupt while it's speaking — only your voice is detected, not background noise.</p>
+            <div id="transcriptStatus"></div>
+        </div>
+
+        <div class="info">
+            <span>🧠 Knowledge Base</span>
+            <span>🎯 Voice Detection</span>
+            <span>🔊 Natural Voice</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/bundle.min.js"></script>
+    <script>
+        let sessionId = null;
+        let isCallActive = false;
+        let stream = null;
+        let vadInstance = null;
+        let currentAgentAudio = null;
+        let requestInFlight = false;
+
+        function encodeWAV(samples, sampleRate) {
+            const numChannels = 1;
+            const format = 1;
+            const bitsPerSample = 16;
+            const bytesPerSample = bitsPerSample / 8;
+            const blockAlign = numChannels * bytesPerSample;
+            const byteRate = sampleRate * blockAlign;
+            const dataSize = samples.length * bytesPerSample;
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+            const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+            writeStr(0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeStr(8, 'WAVE');
+            writeStr(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, format, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true);
+            writeStr(36, 'data');
+            view.setUint32(40, dataSize, true);
+            for (let i = 0; i < samples.length; i++) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+            return buffer;
+        }
+
+        async function startCall() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('statusDiv').innerHTML = '<span class="status-dot"></span><strong>Starting</strong> — Connecting...';
+                document.getElementById('statusDiv').classList.add('recording');
+                document.getElementById('transcript').innerHTML = '<p class="loading"><span class="spinner"></span>Starting call...</p><div id="transcriptStatus"></div>';
+
+                const response = await fetch('/api/start_call', { method: 'POST' });
+                const data = await response.json();
+                sessionId = data.session_id;
+                isCallActive = true;
+                document.getElementById('endBtn').disabled = false;
+
+                vadInstance = await vad.MicVAD.new({
+                    getStream: async () => stream,
+                    onSpeechStart: () => {
+                        if (currentAgentAudio && isCallActive) {
+                            currentAgentAudio.pause();
+                            currentAgentAudio.currentTime = 0;
+                            currentAgentAudio = null;
+                            requestInFlight = false;
+                        }
+                    },
+                    onSpeechEnd: async (audio) => {
+                        if (!isCallActive || requestInFlight) return;
+                        if (audio.length < 8000) return;
+                        const wav = encodeWAV(audio, 16000);
+                        const blob = new Blob([wav], { type: 'audio/wav' });
+                        await sendAudioToServer(blob);
+                    },
+                    positiveSpeechThreshold: 0.8,
+                    negativeSpeechThreshold: 0.6,
+                    minSpeechFrames: 4,
+                    redemptionFrames: 8,
+                    onnxWASMBasePath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/',
+                    baseAssetPath: 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/'
+                });
+                vadInstance.start();
+
+                document.getElementById('statusDiv').innerHTML = '<span class="status-dot"></span><strong>Listening</strong> — Speak anytime, even to interrupt';
+                document.getElementById('transcript').innerHTML = '<div class="message agent-message">🤖 Hello, this is Institute of Space Technology. How can I help you today?</div><div id="transcriptStatus"><p class="loading" style="margin-top: 10px;">Speak your question — I detect your voice, not background noise.</p></div>';
+
+                if (data.greeting_audio_url) {
+                    currentAgentAudio = new Audio(data.greeting_audio_url);
+                    currentAgentAudio.onended = () => { currentAgentAudio = null; };
+                    currentAgentAudio.play();
+                }
+            } catch (error) {
+                document.getElementById('transcript').innerHTML = `<p style="color: var(--danger);">⚠️ ${error.message}</p><p style="font-size: 12px; color: var(--text-muted);">Allow microphone access and try again.</p>`;
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        async function sendAudioToServer(audioBlob) {
+            if (!sessionId || !isCallActive) return;
+            requestInFlight = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('session_id', sessionId);
+                formData.append('audio', audioBlob, 'audio.wav');
+
+                const statusEl = document.getElementById('transcriptStatus');
+                if (statusEl) statusEl.innerHTML = '<p class="loading"><span class="spinner"></span>Processing your question...</p>';
+
+                const response = await fetch('/api/query', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (data.audio_url) {
+                    if (!isCallActive) { requestInFlight = false; return; }
+                    const statusEl = document.getElementById('transcriptStatus');
+                    if (statusEl) statusEl.innerHTML = '';
+                    const agentDiv = document.createElement('div');
+                    agentDiv.className = 'message agent-message';
+                    agentDiv.textContent = '🤖 [Playing response...]';
+                    document.getElementById('transcript').appendChild(agentDiv);
+                    currentAgentAudio = new Audio(data.audio_url);
+                    currentAgentAudio.onended = () => {
+                        if (!isCallActive) return;
+                        currentAgentAudio = null;
+                        requestInFlight = false;
+                        const s = document.getElementById('transcriptStatus');
+                        if (s) s.innerHTML = '<p class="loading">Speak your next question...</p>';
+                    };
+                    currentAgentAudio.play();
+                } else if (data.response) {
+                    const statusEl = document.getElementById('transcriptStatus');
+                    if (statusEl) statusEl.innerHTML = '';
+                    const agentDiv = document.createElement('div');
+                    agentDiv.className = 'message agent-message';
+                    agentDiv.textContent = '🤖 ' + data.response;
+                    document.getElementById('transcript').appendChild(agentDiv);
+                    const s = document.getElementById('transcriptStatus');
+                    if (s) s.innerHTML = '<p class="loading">Speak your next question...</p>';
+                    requestInFlight = false;
+                }
+            } catch (error) {
+                document.getElementById('transcript').innerHTML += `<div class="message" style="background: rgba(248,113,113,0.15); border-color: rgba(248,113,113,0.3);">⚠️ ${error.message}</div>`;
+                requestInFlight = false;
+            }
+        }
+
+        async function endCall() {
+            try {
+                isCallActive = false;
+                if (currentAgentAudio) { currentAgentAudio.pause(); currentAgentAudio.currentTime = 0; currentAgentAudio = null; }
+                if (vadInstance) { vadInstance.pause(); vadInstance.destroy(); vadInstance = null; }
+                if (stream) stream.getTracks().forEach(t => t.stop());
+                if (sessionId) {
+                    await fetch('/api/end_call', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_id: sessionId })
+                    });
+                }
+                requestInFlight = false;
+                document.getElementById('endBtn').disabled = true;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('statusDiv').innerHTML = '<span class="status-dot"></span><strong>Ended</strong>';
+                document.getElementById('statusDiv').classList.remove('recording');
+                document.getElementById('transcript').innerHTML += '<div class="message" style="background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.2); margin-top: 12px;">✓ Call ended. Click Start to begin again.</div>';
+            } catch (error) {
+                document.getElementById('transcript').innerHTML += `<div class="message" style="background: rgba(248,113,113,0.15);">⚠️ ${error.message}</div>`;
+            }
+        }
+
+        window.addEventListener('load', () => document.getElementById('startBtn').focus());
+    </script>
+</body>
+</html>
