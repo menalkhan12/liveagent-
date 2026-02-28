@@ -31,7 +31,7 @@ client = OpenAI(
 )
 
 # Best free model on OpenRouter - no daily limit, just per-minute rate limit
-MODEL = "google/gemini-2.0-flash-exp:free"
+MODEL = "openrouter/free"
 
 documents = []
 doc_names = []
