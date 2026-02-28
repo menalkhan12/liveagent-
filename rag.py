@@ -1,6 +1,5 @@
 import os
 import json
-import time
 import logging
 from pathlib import Path
 
@@ -218,30 +217,31 @@ User query: {query}
 
 Answer:"""
 
-    for attempt in range(3):
-        try:
-            response = gemini.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.2,
-                    max_output_tokens=150
-                )
+    try:
+        response = gemini.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.2,
+                max_output_tokens=150
             )
+        )
+        reply = response.text.strip()
+        escalated = any(p in reply.lower() for p in [
+            "technical issue", "cannot find", "unable",
+            "phone number", "provide your phone", "contact you"
+        ])
+        return reply, escalated
 
-            reply = response.text.strip()
-            escalated = any(p in reply.lower() for p in [
-                "technical issue", "cannot find", "unable",
-                "phone number", "provide your phone", "contact you"
-            ])
-            return reply, escalated
-
-        except Exception as e:
-            error_str = str(e).lower()
-            if "429" in error_str or "quota" in error_str or "rate" in error_str:
-                if attempt < 2:
-                    wait = 30 * (attempt + 1)
-                    logger.warning(f"Rate limit hit, retrying in {wait}s (attempt {attempt+1})")
-                    time.sleep(wait)
+    except Exception as e:
+        error_str = str(e).lower()
+        if "429" in error_str or "quota" in error_str or "rate" in error_str:
+            logger.error(f"Gemini rate limit: {e}")
+            return ("Our lines are busy right now. Please try again in a moment.", False)
+        if "timeout" in error_str:
+            logger.error(f"Gemini timeout: {e}")
+            return ("Taking too long to respond. Please try again.", False)
+        logger.error(f"Gemini error: {e}")
+        return ("Technical issue. Please provide your phone number.", True)
                     continue
                 logger.error(f"Rate limit after 3 attempts: {e}")
                 return ("I'm temporarily busy. Please call back in a minute.", False)
