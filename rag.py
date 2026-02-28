@@ -14,13 +14,15 @@ if env_path.exists():
                 os.environ[key.strip()] = value.strip()
 
 api_key = os.getenv("GROQ_API_KEY")
+if not api_key:
+    raise ValueError(f"GROQ_API_KEY not found in .env file at {env_path}")
 
 from groq import Groq
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
-client = Groq(api_key=api_key) if api_key else None
+client = Groq(api_key=api_key)
 
 documents = []
 doc_names = []
@@ -104,8 +106,6 @@ def load_documents():
 
 def initialize_rag():
     global vectorizer, doc_vectors
-    if not api_key or not client:
-        raise ValueError("GROQ_API_KEY not set. Add it in Render Environment variables.")
     load_documents()
     
     if not documents:
@@ -128,21 +128,36 @@ def initialize_rag():
 # ~4 chars/token; free tier TPM 6000 - reserve ~500 for prompt+query+response
 MAX_CONTEXT_CHARS = 14000
 
-def retrieve_context(query, top_k=5):
+def _expand_query_for_retrieval(query):
+    """Add synonyms to help retrieval (STT errors, synonyms). Does not change model output."""
+    q = query.lower()
+    extra = []
+    if any(w in q for w in ["cost", "price", "tuition", "mifi", "mifi structure", "fee structure"]):
+        extra.append("fee avionics aerospace semester")
+    if any(w in q for w in ["merit", "closing", "aggregate"]):
+        extra.append("closing merit computer science 2024")
+    if "last year" in q:
+        extra.append("2024")
+    if extra:
+        return query + " " + " ".join(extra)
+    return query
+
+def retrieve_context(query, top_k=6):
     global vectorizer, doc_vectors
     
     if vectorizer is None or doc_vectors is None:
         return ""
     
     try:
-        query_vec = vectorizer.transform([query])
+        expanded = _expand_query_for_retrieval(query)
+        query_vec = vectorizer.transform([expanded])
         similarities = cosine_similarity(query_vec, doc_vectors).flatten()
         top_indices = similarities.argsort()[-top_k:][::-1]
         
         context_parts = []
         total_len = 0
         for idx in top_indices:
-            if similarities[idx] <= 0.05:
+            if similarities[idx] <= 0.03:
                 continue
             chunk = f"[{doc_names[idx]}]\n{documents[idx]}"
             if total_len + len(chunk) > MAX_CONTEXT_CHARS:
@@ -165,18 +180,18 @@ def generate_answer(query):
         
         if not context.strip():
             return (
-                "I don't have that information. Please provide your phone number and we'll have someone contact you.",
-                True,
+                "I don't have that information. Please provide your phone number and we will contact you.",
                 True
             )
         
         system_prompt = f"""You are the official voice assistant for Institute of Space Technology. You answer callers by phone.
 
 STRICT RULES:
-- Answer ONLY from the CONTEXT below. NEVER invent, assume, guess, or add information not in the context. Stick strictly to the knowledge base. List ONLY what is explicitly stated.
-- If the answer is NOT in CONTEXT: (a) For simple yes/no questions (e.g. "Does IST offer X?", "Is there Y?"): answer "No, that's not in our records." (b) For complex questions needing detailed answers: say "I don't have that information. Please provide your phone number and we'll have someone contact you."
-- If the caller says "you're wrong", "that's incorrect", or challenges you: respond with "This information comes from the official sources of the university. I'm sharing what our records show." Do not change your answer.
-- Answer DIRECTLY—state the figures and facts yourself. NEVER say "check the file" or "visit the website". The caller cannot see files.
+- Answer ONLY from the CONTEXT below. NEVER invent, assume, guess, or add information not in the context. State ONLY what is explicitly in CONTEXT. If CONTEXT lists two programs, do NOT add a third.
+- Simple yes/no questions NOT in CONTEXT: If the question can be answered yes/no and the answer is not in CONTEXT, say "No" or "I don't have that information." Never guess "Yes."
+- Complex questions NOT in CONTEXT: Say "I don't have that information. Please provide your phone number and we will contact you."
+- If the caller says "you're wrong" or challenges you: respond with "This information comes from the official sources of the university." Do not change your answer.
+- Answer DIRECTLY—state the figures and facts yourself. NEVER say "check the file" or "visit the website".
 - Use amounts in lakh and thousand (e.g., 1 lakh 48 thousand rupees).
 - Keep responses 1-3 short sentences, conversational and natural for speech.
 - For aggregate calculation: give ONLY the number in one sentence. Example: "Your aggregate is about 89.6."
@@ -185,8 +200,6 @@ STRICT RULES:
 CONTEXT:
 {context}"""
 
-        if not client:
-            raise ValueError("GROQ_API_KEY not set. Add it in Render Environment variables.")
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
@@ -198,16 +211,13 @@ CONTEXT:
         )
         
         reply = response.choices[0].message.content.strip()
-        escalated = any(p in reply.lower() for p in ["technical issue", "cannot find", "unable"])
-        ask_phone = "phone" in reply.lower() and any(p in reply.lower() for p in ["don't have", "that information", "specific information", "contact you", "connect you"])
-        if ask_phone:
-            escalated = True
-        return reply, escalated, ask_phone
+        escalated = any(p in reply.lower() for p in ["technical issue", "cannot find", "unable", "phone number", "provide your phone"])
+        
+        return reply, escalated
     
     except Exception as e:
         logger.error(f"Error: {e}")
         return (
             "Technical issue. Let me connect you with admissions. Phone number?",
-            True,
             True
         )

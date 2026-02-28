@@ -21,6 +21,8 @@ UNDERGRADUATE (BS) PROGRAMS – 4-year, 8 semesters (by department):
 - Avionics Engineering (Avionics Engineering)
 - Electrical Engineering (Electrical Engineering)
 - Computer Engineering (Electrical Engineering)
+
+NOTE: Department of Electrical Engineering offers ONLY BS Electrical Engineering and BS Computer Engineering. Do not add Communication Systems Engineering or any other program not listed above.
 - Mechanical Engineering (Mechanical Engineering)
 - Materials Science and Engineering (Materials Science and Engineering)
 - Biotechnology (Materials Science and Engineering)

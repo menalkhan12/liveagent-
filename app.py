@@ -16,7 +16,7 @@ from utils import (
     end_call_record,
     append_lead_log,
     detect_phone_number,
-    get_last_unanswered_query,
+    get_last_user_query,
 )
 
 load_dotenv()
@@ -96,8 +96,8 @@ def query():
         # Check if user provided phone number
         phone = detect_phone_number(user_text)
         if phone:
-            unanswered = get_last_unanswered_query(session_id) or user_text
-            append_lead_log(session_id, phone, unanswered)
+            unanswered_query = get_last_user_query(session_id) or user_text
+            append_lead_log(session_id, phone, unanswered_query)
             reply = "Thank you. Our admissions office will contact you soon."
             audio_url = generate_tts(reply, session_id)
             update_call_record(session_id, user_text, reply, escalated=True, phone=phone)
@@ -105,11 +105,11 @@ def query():
             return jsonify({"audio_url": audio_url}), 200
         
         # Generate answer using RAG
-        reply, escalated, ask_phone = generate_answer(user_text)
+        reply, escalated = generate_answer(user_text)
         
         # Generate TTS response
         audio_url = generate_tts(reply, session_id)
-        update_call_record(session_id, user_text, reply, escalated=escalated, unanswered_query=user_text if ask_phone else None)
+        update_call_record(session_id, user_text, reply, escalated=escalated)
         
         logger.info(f"Agent response [{session_id}]: {reply} (escalated: {escalated})")
         

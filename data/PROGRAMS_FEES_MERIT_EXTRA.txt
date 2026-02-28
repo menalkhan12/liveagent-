@@ -4,7 +4,7 @@ PROGRAMS OFFERED (BS):
 IST offers the following undergraduate programs: Aerospace Engineering, Avionics Engineering, Electrical Engineering, Mechanical Engineering, Materials Science and Engineering, Computer Science, Computer Engineering, Software Engineering, Artificial Intelligence, Data Science, Space Science, Mathematics, Physics, Biotechnology. Computer Engineering is offered under the Department of Electrical Engineering. Software Engineering is offered under the Department of Computing.
 
 FEES (per semester, BS):
-- Department of Electrical Engineering offers ONLY BS Electrical Engineering and BS Computer Engineering. No other program. About 1 lakh 48 thousand rupees per semester.
+- Department of Electrical Engineering (includes BS Computer Engineering): About 1 lakh 48 thousand rupees per semester.
 - Department of Computing: BS Computer Science, BS Software Engineering, BS Artificial Intelligence, BS Data Science – all about 1 lakh 26 thousand rupees per semester.
 
 CLOSING MERIT (last 2 years – 2023 and 2024):

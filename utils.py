@@ -19,21 +19,15 @@ def init_call_record(session_id):
         "start_time": str(datetime.now()),
         "turns": [],
         "escalated": False,
-        "phone": None,
-        "last_unanswered_query": None
+        "phone": None
     }
 
     with open(CALL_RECORD_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-def update_call_record(session_id, user, agent, escalated=False, phone=None, unanswered_query=None):
+def update_call_record(session_id, user, agent, escalated=False, phone=None):
     with open(CALL_RECORD_FILE, "r") as f:
         data = json.load(f)
-
-    if session_id not in data:
-        init_call_record(session_id)
-        with open(CALL_RECORD_FILE, "r") as f:
-            data = json.load(f)
 
     data[session_id]["turns"].append({
         "user": user,
@@ -46,19 +40,8 @@ def update_call_record(session_id, user, agent, escalated=False, phone=None, una
     if phone:
         data[session_id]["phone"] = phone
 
-    if unanswered_query is not None:
-        data[session_id]["last_unanswered_query"] = unanswered_query
-
     with open(CALL_RECORD_FILE, "w") as f:
         json.dump(data, f, indent=2)
-
-def get_last_unanswered_query(session_id):
-    try:
-        with open(CALL_RECORD_FILE, "r") as f:
-            data = json.load(f)
-        return data.get(session_id, {}).get("last_unanswered_query")
-    except Exception:
-        return None
 
 def end_call_record(session_id):
     with open(CALL_RECORD_FILE, "r") as f:
@@ -70,9 +53,22 @@ def end_call_record(session_id):
         json.dump(data, f, indent=2)
 
 def append_lead_log(session_id, phone, unanswered_query):
-    os.makedirs("logs", exist_ok=True)
-    with open(LEAD_LOG_FILE, "a") as f:
+    """Store lead with call_id, phone, the query that wasn't answered, and timestamp."""
+    with open(LEAD_LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.now()} | call_id={session_id} | phone={phone} | unanswered_query={unanswered_query}\n")
+
+def get_last_user_query(session_id):
+    """Get the last user query from call record (the question we couldn't answer before they gave phone)."""
+    try:
+        if not os.path.exists(CALL_RECORD_FILE):
+            return None
+        with open(CALL_RECORD_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if session_id not in data or not data[session_id].get("turns"):
+            return None
+        return data[session_id]["turns"][-1]["user"]
+    except Exception:
+        return None
 
 def detect_phone_number(text):
     match = re.search(r"(03\d{9})", text)
