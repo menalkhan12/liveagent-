@@ -169,6 +169,8 @@ def _expand_query_for_retrieval(query):
         extra.append("transport bus shuttle routes fee charges")
     if any(w in q for w in ["eligibility", "eligible", "whatsapp", "seats", "focus", "dae"]):
         extra.append("eligibility WhatsApp seats focus areas DAE")
+    if any(w in q for w in ["foreign", "international", "overseas", "non-pakistani", "other country"]):
+        extra.append("foreign admission international USD fee eligibility NOC HEC")
     if "last year" in q:
         extra.append("2024")
     if extra:
