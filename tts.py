@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import time
 import uuid
 import os
 import logging
@@ -7,8 +8,9 @@ import edge_tts
 
 logger = logging.getLogger(__name__)
 
-# Natural neural voice (Microsoft Edge TTS)
 VOICE = "en-US-JennyNeural"
+MIN_FILE_SIZE = 1000  # bytes — any real MP3 is larger than this
+
 
 def generate_tts(text, session_id):
     try:
@@ -19,8 +21,6 @@ def generate_tts(text, session_id):
             communicate = edge_tts.Communicate(text, VOICE, rate="+0%", pitch="+0Hz")
             await communicate.save(filename)
 
-        # Gunicorn workers may already have a running event loop.
-        # Always spin up a fresh loop in a dedicated thread to avoid conflicts.
         result = {"error": None}
 
         def run_in_thread():
@@ -35,7 +35,7 @@ def generate_tts(text, session_id):
 
         t = threading.Thread(target=run_in_thread)
         t.start()
-        t.join(timeout=25)  # Don't wait forever
+        t.join(timeout=28)
 
         if t.is_alive():
             logger.error("TTS timed out")
@@ -45,11 +45,27 @@ def generate_tts(text, session_id):
             logger.error(f"TTS Error: {result['error']}")
             return None
 
-        if os.path.exists(filename):
-            logger.info(f"Generated TTS: {filename}")
-            return "/" + filename
+        # ── Wait until the file is fully written ──────────────────────────
+        # iOS fetches the MP3 immediately and gets 2 bytes if the file
+        # isn't ready yet — this loop waits until the file has real content.
+        waited = 0.0
+        while waited < 3.0:
+            if os.path.exists(filename) and os.path.getsize(filename) >= MIN_FILE_SIZE:
+                break
+            time.sleep(0.05)
+            waited += 0.05
 
-        return None
+        if not os.path.exists(filename):
+            logger.error("TTS file not found after wait")
+            return None
+
+        final_size = os.path.getsize(filename)
+        if final_size < MIN_FILE_SIZE:
+            logger.error(f"TTS file too small ({final_size} bytes) — incomplete write")
+            return None
+
+        logger.info(f"Generated TTS: {filename} ({final_size} bytes)")
+        return "/" + filename
 
     except Exception as e:
         logger.error(f"TTS Error: {e}")
