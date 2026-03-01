@@ -157,6 +157,8 @@ def _expand_query_for_retrieval(query):
     extra = []
     if any(w in q for w in ["cost", "price", "tuition", "fee", "fees"]):
         extra.append("fee structure tuition semester charges rupees")
+    if any(w in q for w in ["space science", "physics", "mathematics", "biotechnology"]) and any(w in q for w in ["fee", "cost"]):
+        extra.append("BS Space Science BS Physics 1 lakh 2 thousand semester")
     if any(w in q for w in ["merit", "closing", "aggregate", "calculate"]):
         extra.append("merit aggregate matric FSC entry test engineering")
     if any(w in q for w in ["electrical"]) and any(w in q for w in ["program", "offer", "department"]):
@@ -165,6 +167,8 @@ def _expand_query_for_retrieval(query):
         extra.append("hostel charges accommodation fee")
     if any(w in q for w in ["transport", "bus", "shuttle"]):
         extra.append("transport bus shuttle routes fee charges")
+    if any(w in q for w in ["eligibility", "eligible", "whatsapp", "seats", "focus", "dae"]):
+        extra.append("eligibility WhatsApp seats focus areas DAE")
     if "last year" in q:
         extra.append("2024")
     if extra:
@@ -222,7 +226,7 @@ def generate_answer(query, conversation_history=None):
     if is_compliment:
         return ("Thank you.", False)
 
-    # Resolve continuation: "its fee", "that program", etc. using recent conversation
+    # Resolve continuation: "its fee", "their fee", "that program" etc. using recent conversation
     user_message = query
     retrieval_query = query
     if conversation_history:
@@ -230,11 +234,12 @@ def generate_answer(query, conversation_history=None):
         user_message = f"""Previous conversation:
 {hist_str}
 
-Current query (may refer to above, e.g. "its fee" = fee of what we just discussed): {query}"""
-        # Improve retrieval for vague follow-ups: add keywords from last agent response
-        last_agent = conversation_history[-1][1] if conversation_history else ""
-        if any(w in query.lower() for w in ["its", "that", "it", "this", "same"]):
-            retrieval_query = f"{query} {last_agent}"
+Current query (resolve "it"/"its"/"their"/"them"/"that" from above; e.g. "their fee" = fee of programs just listed): {query}"""
+        last_user, last_agent = conversation_history[-1] if conversation_history else ("", "")
+        continuation_words = ["its", "their", "them", "they", "that", "those", "it", "this", "same", "can you tell", "please tell"]
+        is_continuation = any(w in query.lower() for w in continuation_words)
+        if is_continuation and (last_agent or last_user):
+            retrieval_query = f"{query} {last_user} {last_agent}"
 
     context = retrieve_context(retrieval_query)
 
@@ -256,8 +261,10 @@ STRICT RULES:
 - Keep responses 1-3 short sentences, conversational for speech.
 - For aggregate: Formula is (Matric/1100 x 10) + (FSC/1100 x 40) + (EntryTest/100 x 50). Calculate immediately when marks are given.
 - POLITE: "Thank you"/"thanks"/"ok thanks" -> "You're welcome" or "Welcome". Compliments ("you're good", "great job") -> "Thank you."
-- FEE: If asked for a SPECIFIC program's fee, give ONLY that program. If asked "same fee for all?" say "Fee varies by department. Tell me which program."
-- CONTINUATION: When the current query refers to the previous answer (e.g. "what is its fee?", "that program's merit?"), resolve "it"/"its"/"that" from the conversation above and answer accordingly.
+- FEE: (a) When asked fee of a DEPARTMENT (e.g. Space Science dept, Computing dept): List each program in that department and its fee. Space Science dept has BS Space Science and BS Physics: both 1 lakh 2 thousand per semester. (b) When asked fee of a SPECIFIC program (e.g. BS Space Science): Give only that fee. BS Space Science, BS Physics, BS Mathematics, BS Biotechnology: 1 lakh 2 thousand per semester. (c) "Same fee for all?" -> "Fee varies. Tell me which program."
+- CONTINUATION: ALWAYS resolve "it"/"its"/"their"/"them"/"that" from the PREVIOUS turn. If Agent said "BS Space Science and BS Physics", then "their fee" = fee for BOTH. Never answer about a different department.
+- DIPLOMA: IST does NOT offer diploma programs. The diplomas (Aerospace, Auto Diesel, etc.) are DAE qualifications applicants may have—not programs IST offers.
+- Only say "You're welcome" when user explicitly thanks you. Never append it to fee or info responses.
 - Be professional and friendly.
 
 CONTEXT:

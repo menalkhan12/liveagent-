@@ -116,7 +116,7 @@ def query():
             return jsonify(payload), 200
         
         # Generate answer using RAG (with conversation history for continuity)
-        history = get_recent_turns(session_id, n=3)
+        history = get_recent_turns(session_id, n=5)
         reply, escalated = generate_answer(user_text, conversation_history=history)
         
         # Generate TTS response

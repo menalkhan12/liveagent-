@@ -1,0 +1,86 @@
+IST PROGRAMS – ELIGIBILITY, WHATSAPP, FOCUS AREAS, SEATS
+(Use for queries: eligibility for a program, WhatsApp number, seats, focus areas. Do not duplicate info already in MERIT_CRITERIA, FEE_STRUCTURE, or ADMISSION_INFO.)
+
+WhatsApp numbers (same for all programs):
+- Program-related information: 03362154097
+- Admissions-related information: 03148909890
+
+AEROSPACE ENGINEERING
+Focus Areas: Flight Control System, Flight Dynamics and Stability, Aerodynamics and Fluid Mechanics, Aerospace Structures, Aerospace Materials, Computational Fluid Dynamics, Spacecraft Design and Dynamics, Propulsion.
+Eligibility: Matric/Equivalent (Science) min 60%; FSc Pre-Engineering/ICS/DAE/Equivalent min 60% overall; Entry Test min 33% for IST. Pre-Medical can apply after 8-week condensed Mathematics course.
+DAE acceptable: Aerospace, Auto Diesel, Automation, Mechanical (any), Mechatronics.
+Seats: 100.
+
+ELECTRICAL ENGINEERING
+Focus Areas: Electronic Devices and Circuits, Embedded Systems, Microprocessors, Digital Systems Design, VLSI Design, Instrumentation, Digital Signal Processing, Digital Communications, Power Distribution, Navigation Systems, Data Structures, AI, IoT.
+Eligibility: Same as Aerospace.
+DAE acceptable: Electronics, Telecommunication, Electrical, Mechatronics, Avionics, Computer/IT, Instrumentation, Automation, Radar/Radio Technology, Precision Mechanical & Instrument, Information.
+Seats: 100.
+
+METALLURGY AND MATERIALS ENGINEERING (Materials Science and Engineering)
+Focus Areas: Nano Materials, AI-Enabled Materials, Aerospace Materials, Extractive Metallurgy, Computational Materials Science, Energy and Electronic Materials, Composite Manufacturing, Polymers, Biomaterials.
+Eligibility: Same as Aerospace.
+DAE acceptable: Mechanical (any), Foundry and Pattern Making, Cast Metal & Foundry, Glass Ceramics & Pottery.
+Seats: 80.
+
+MECHANICAL ENGINEERING
+Focus Areas: Mechanical Design and Analysis, Fluid and Thermal Systems, Advanced Manufacturing, Smart Structures, Dynamics and Controls, Automobile.
+Eligibility: Same as Aerospace.
+DAE acceptable: Aerospace, Mechanical (any), Mechatronics, Automation, Auto & Diesel Tech, Precision Mechanical & Instrument, Dies & Mould, Refrigeration & Air Conditioning, Bio-medical, Vacuum.
+Seats: 120.
+
+AVIONICS ENGINEERING
+Focus Areas: Avionics System Design, Guidance Navigation and Flight Controls, Aerospace Communication and Surveillance, Radars and Microwave Systems, Embedded Systems, Safety Critical Software, Aircraft Systems Engineering, AI/ML Applications.
+Eligibility: Same as Aerospace.
+DAE acceptable: Electronics, Telecommunication, Mechatronics, Avionics, Computer/IT, Instrumentation, Automation, Radar/Radio Technology, Software.
+Seats: 80.
+
+COMPUTER ENGINEERING (Non-Engineering, NCEAC Approved)
+Eligibility: Matric/Equivalent; HSSC or DAE with Physics, Mathematics, and Chemistry/CS or equivalent 12 years education, min 60% overall; Entry Test min 33%.
+Seats: 50.
+
+COMPUTER SCIENCE / ARTIFICIAL INTELLIGENCE / DATA SCIENCE / SOFTWARE ENGINEERING (Non-Engineering, NCEAC)
+Focus Areas: Deep Machine Learning, Computer Vision, Web and Mobile App Development, Databases, Cyber Security, Application Software Development, Big Data Analytics.
+Eligibility: Matric/Equivalent; HSSC/DAE/Equivalent with Mathematics min 50% overall OR Pre-Medical min 50%*; Entry Test min 33%. *Pre-Medical if admitted must study 2 extra Math courses (6 credits) in first year.
+Seats: Computer Science 100, AI 50, Data Science 50, Software Engineering 50.
+
+SPACE SCIENCE
+Focus Areas: Astronomy and Astrophysics, Remote Sensing and GIS, Environmental and Climate Science, GNSS, Astrodynamics.
+Eligibility: Matric/Equivalent; FSc Pre-Engineering/ICS/Equivalent with Math & Physics; Entry Test min 33%.
+Seats: 50.
+
+PHYSICS
+Focus Areas: Quantum computing, Computational physics, Renewable energies.
+Eligibility: Matric/Equivalent; FSc Pre-Engineering/ICS/Equivalent with Math & Physics; Entry Test min 33%.
+Seats: 40.
+
+MATHEMATICS / MATHEMATICS WITH AI / MATHEMATICS WITH DATA SCIENCE
+Focus Areas: Programming Fundamentals, Object Oriented Programming, ICT, Discrete Structures, Machine Learning.
+Eligibility: Matric/Equivalent; HSSC or IBCC equivalent in any group with Mathematics/General Mathematics; Entry Test min 33%.
+Seats: Mathematics 50, Mathematics with AI 50, Mathematics with Data Science 50.
+
+BIOTECHNOLOGY
+Focus Areas: Biomaterials, Tissue engineering, Regenerative Medicine, Molecular Biology, Cell Biology, Microbiology.
+Eligibility: Matric/Equivalent; FSc or IBCC equivalent in any science group with at least one of: Biology, Chemistry, Physics, Mathematics, Computer Science; Entry Test min 33%.
+Seats: 40.
+
+CHEMISTRY (NANOTECHNOLOGY)
+Focus Areas: Nanofabrication, Nanoelectronics, Energy and electrochemistry, Polymer Chemistry, Materials Chemistry, Biochemistry, Environmental Chemistry, Analytical Chemistry, Vulnerability and Risk Mapping.
+Eligibility: Matric/Equivalent; FSc or IBCC equivalent in any science group with Biology/Chemistry/Physics/Mathematics/Computer Science*; Entry Test min 33%. *If no Chemistry, must study General Chemistry I and II (deficiency courses).
+Seats: 40.
+
+REMOTE SENSING AND GIS
+Focus Areas: AI for Earth Observation, Climate Change Modeling, Disaster Risk Reduction, Hazard Monitoring, Vulnerability and Risk Mapping.
+Eligibility: Matric/Equivalent; FSc or IBCC equivalent in Science group with Mathematics; Entry Test min 33%.
+Seats: 40.
+
+GENERAL NOTES (for eligibility queries):
+- ICS (Math, Physics, Computer Science) can apply for all BS engineering programs; Chemistry as remedial in 1st semester if needed.
+- A-Level/Cambridge/other qualifications need IBCC equivalence certificate.
+- Pre-medical with additional math or appearing for additional math can apply per program criteria.
+- Pre-Medical can apply for all engineering after 8-week condensed Mathematics course from a recognized university.
+- HSSC/A-Level final result awaiting (first annual only) eligible; provisional admission; submit result before 1st semester exams or within 15 days of result.
+- DAE (3 years) with complete result eligible in related programs.
+- International applicants must meet HEC requirements.
+- Institute reserves right to amend or discontinue; applicant responsible for submitting certificates on time.
+- University may drop a program if insufficient candidates.
