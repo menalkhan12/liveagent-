@@ -1,0 +1,10 @@
+GROQ_API_KEYS - Multiple keys for fallback when one hits rate limit
+=====================================================================
+In Render Dashboard → Environment, add:
+
+GROQ_API_KEYS=key1,key2,key3,key4,key5,key6
+
+(Comma-separated, no spaces. Each key is used in order; when one gets 429, the next is tried.)
+
+Or use a single key:
+GROQ_API_KEY=your_single_key

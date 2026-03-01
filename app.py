@@ -17,6 +17,7 @@ from utils import (
     append_lead_log,
     detect_phone_number,
     get_last_user_query,
+    get_recent_turns,
 )
 
 load_dotenv()
@@ -114,8 +115,9 @@ def query():
                 payload["audio_url"] = audio_url
             return jsonify(payload), 200
         
-        # Generate answer using RAG
-        reply, escalated = generate_answer(user_text)
+        # Generate answer using RAG (with conversation history for continuity)
+        history = get_recent_turns(session_id, n=3)
+        reply, escalated = generate_answer(user_text, conversation_history=history)
         
         # Generate TTS response
         audio_url = generate_tts(reply, session_id)

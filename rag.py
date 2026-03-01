@@ -13,17 +13,14 @@ if env_path.exists():
                 key, value = line.split("=", 1)
                 os.environ[key.strip()] = value.strip()
 
-api_key = os.getenv("GROQ_API_KEY")
-if not api_key:
-    raise ValueError("GROQ_API_KEY not found. Set it in .env or Render Environment Variables.")
+from groq_utils import get_client, num_keys, GROQ_KEYS
+if not GROQ_KEYS:
+    raise ValueError("GROQ_API_KEY or GROQ_API_KEYS not found. Set in .env or Render Environment.")
 
-from groq import Groq
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
-
-client = Groq(api_key=api_key, timeout=45.0)
 
 # Groq free tier: 30 RPM, 6K TPM, 500K TPD for 8B; 30 RPM, 12K TPM, 100K TPD for 70B
 MODELS = [
@@ -208,10 +205,38 @@ def retrieve_context(query, top_k=6):
         return ""
 
 
-def generate_answer(query):
-    query = _fix_stt_errors(query)
+def _is_thanks_or_compliment(query):
+    q = query.lower().strip()
+    thanks = any(x in q for x in ["thank", "thanks", "thx", "ok thanks", "okay thanks", "ty "])
+    compliment = any(x in q for x in ["you're good", "youre good", "great job", "well done", "you're helpful", "youre helpful", "good job", "nice ", "awesome", "excellent"])
+    return thanks, compliment
 
-    context = retrieve_context(query)
+def generate_answer(query, conversation_history=None):
+    query = _fix_stt_errors(query)
+    q_lower = query.lower().strip()
+
+    # Fast path: thanks / compliments
+    is_thanks, is_compliment = _is_thanks_or_compliment(query)
+    if is_thanks:
+        return ("You're welcome.", False)
+    if is_compliment:
+        return ("Thank you.", False)
+
+    # Resolve continuation: "its fee", "that program", etc. using recent conversation
+    user_message = query
+    retrieval_query = query
+    if conversation_history:
+        hist_str = "\n".join([f"User: {u}\nAgent: {a}" for u, a in conversation_history])
+        user_message = f"""Previous conversation:
+{hist_str}
+
+Current query (may refer to above, e.g. "its fee" = fee of what we just discussed): {query}"""
+        # Improve retrieval for vague follow-ups: add keywords from last agent response
+        last_agent = conversation_history[-1][1] if conversation_history else ""
+        if any(w in query.lower() for w in ["its", "that", "it", "this", "same"]):
+            retrieval_query = f"{query} {last_agent}"
+
+    context = retrieve_context(retrieval_query)
 
     if not context.strip():
         return (
@@ -230,41 +255,45 @@ STRICT RULES:
 - Use amounts in lakh and thousand (e.g., 1 lakh 48 thousand rupees).
 - Keep responses 1-3 short sentences, conversational for speech.
 - For aggregate: Formula is (Matric/1100 x 10) + (FSC/1100 x 40) + (EntryTest/100 x 50). Calculate immediately when marks are given.
+- POLITE: "Thank you"/"thanks"/"ok thanks" -> "You're welcome" or "Welcome". Compliments ("you're good", "great job") -> "Thank you."
+- FEE: If asked for a SPECIFIC program's fee, give ONLY that program. If asked "same fee for all?" say "Fee varies by department. Tell me which program."
+- CONTINUATION: When the current query refers to the previous answer (e.g. "what is its fee?", "that program's merit?"), resolve "it"/"its"/"that" from the conversation above and answer accordingly.
 - Be professional and friendly.
 
 CONTEXT:
 {context}"""
 
-    for model in MODELS:
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": query}
-                ],
-                temperature=0.2,
-                max_tokens=150
-            )
-
-            reply = response.choices[0].message.content
-
-            if not reply or not reply.strip():
-                logger.warning(f"Empty reply from {model}, trying next model...")
+    for key_idx in range(num_keys()):
+        client = get_client(key_idx)
+        for model in MODELS:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_message}
+                    ],
+                    temperature=0.2,
+                    max_tokens=150
+                )
+                reply = response.choices[0].message.content
+                if not reply or not reply.strip():
+                    logger.warning(f"Empty reply from {model}, trying next model...")
+                    continue
+                reply = reply.strip()
+                logger.info(f"LLM reply from {model}: {reply}")
+                escalated = any(p in reply.lower() for p in [
+                    "technical issue", "cannot find", "unable",
+                    "phone number", "provide your phone", "contact you"
+                ])
+                return reply, escalated
+            except Exception as e:
+                err_str = str(e).lower()
+                if "429" in err_str or "rate" in err_str or "quota" in err_str:
+                    logger.warning(f"Key {key_idx+1} rate limited, trying next key...")
+                    break
+                logger.error(f"Model {model} failed: {e}, trying next model...")
                 continue
-
-            reply = reply.strip()
-            logger.info(f"LLM reply from {model}: {reply}")
-
-            escalated = any(p in reply.lower() for p in [
-                "technical issue", "cannot find", "unable",
-                "phone number", "provide your phone", "contact you"
-            ])
-            return reply, escalated
-
-        except Exception as e:
-            logger.error(f"Model {model} failed: {e}, trying next model...")
-            continue
 
     # All models failed
     logger.error("All models failed")

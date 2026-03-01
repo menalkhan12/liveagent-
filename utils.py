@@ -70,6 +70,21 @@ def get_last_user_query(session_id):
     except Exception:
         return None
 
+
+def get_recent_turns(session_id, n=3):
+    """Get last n turns (user/agent pairs) for conversation continuity. Returns list of (user, agent) tuples."""
+    try:
+        if not os.path.exists(CALL_RECORD_FILE):
+            return []
+        with open(CALL_RECORD_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if session_id not in data or not data[session_id].get("turns"):
+            return []
+        turns = data[session_id]["turns"][-n:]
+        return [(t["user"], t["agent"]) for t in turns]
+    except Exception:
+        return []
+
 def detect_phone_number(text):
     match = re.search(r"(03\d{9})", text)
     return match.group(1) if match else None
