@@ -207,44 +207,60 @@ async function unlockAudio() {
     } catch(_) {}
 }
 
-// ── Play audio — with iOS fallback via AudioContext ───────────────────────
+// ── Play audio — iOS uses Web Audio API (unlocked at Start), others use HTML Audio ─
 function playAudio(url, onDone) {
-    // Always use HTML Audio element (works on both platforms)
-    // But keep a reference so we can interrupt
-    if (currentAudio) {
-        try { currentAudio.pause(); } catch(_) {}
-        currentAudio = null;
+    const stopCurrent = () => {
+        if (currentAudio) {
+            try {
+                if (currentAudio.pause) currentAudio.pause();
+                else if (currentAudio.stop) currentAudio.stop();
+            } catch(_) {}
+            currentAudio = null;
+        }
+    };
+    stopCurrent();
+
+    // iOS: HTML Audio .play() is blocked when called from async callback (no user gesture).
+    // Web Audio API works because AudioContext was resumed during Start tap.
+    if (isIOS && audioCtx) {
+        (async () => {
+            try {
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+                const res = await fetch(url);
+                const ab = await res.arrayBuffer();
+                const buffer = await audioCtx.decodeAudioData(ab);
+                const src = audioCtx.createBufferSource();
+                src.buffer = buffer;
+                src.connect(audioCtx.destination);
+                src.onended = () => { currentAudio = null; if (onDone) onDone(); };
+                currentAudio = src;
+                src.start(audioCtx.currentTime + 0.01);  // Slight offset for Safari
+            } catch (err) {
+                console.warn('iOS Web Audio failed:', err);
+                currentAudio = null;
+                playAudioHTML(url, onDone);
+            }
+        })();
+        return;
     }
+
+    playAudioHTML(url, onDone);
+}
+
+function playAudioHTML(url, onDone) {
     const a = new Audio();
     a.setAttribute('playsinline', 'true');
     a.setAttribute('webkit-playsinline', 'true');
     a.preload = 'auto';
     a.src = url;
     currentAudio = a;
-
     a.onended = () => { currentAudio = null; if (onDone) onDone(); };
     a.onerror = () => { currentAudio = null; if (onDone) onDone(); };
-
-    const p = a.play();
-    if (p && p.catch) {
-        p.catch(err => {
-            console.warn('Audio play blocked:', err);
-            // iOS sometimes needs a tiny delay after user gesture chain breaks
-            setTimeout(() => {
-                const a2 = new Audio(url);
-                a2.setAttribute('playsinline', 'true');
-                a2.setAttribute('webkit-playsinline', 'true');
-                currentAudio = a2;
-                a2.onended = () => { currentAudio = null; if (onDone) onDone(); };
-                a2.onerror = () => { currentAudio = null; if (onDone) onDone(); };
-                a2.play().catch(() => {
-                    // Give up on audio, just call onDone so UI continues
-                    currentAudio = null;
-                    if (onDone) onDone();
-                });
-            }, 100);
-        });
-    }
+    a.play().catch(err => {
+        console.warn('Audio play failed:', err);
+        currentAudio = null;
+        if (onDone) onDone();
+    });
 }
 
 // ── Status helpers ─────────────────────────────────────────────────────────
@@ -399,7 +415,7 @@ async function startCall() {
                 onSpeechStart: () => {
                     // Interrupt agent audio if user starts speaking
                     if (currentAudio && !greetingPlaying) {
-                        try { currentAudio.pause(); } catch(_){}
+                        try { currentAudio.pause ? currentAudio.pause() : currentAudio.stop(); } catch(_){}
                         currentAudio = null;
                         requestInFlight = false;
                     }
@@ -522,7 +538,7 @@ function done() {
 // ── End Call ───────────────────────────────────────────────────────────────
 async function endCall() {
     isCallActive = false;
-    if (currentAudio) { try { currentAudio.pause(); } catch(_){} currentAudio = null; }
+    if (currentAudio) { try { currentAudio.pause ? currentAudio.pause() : currentAudio.stop(); } catch(_){} currentAudio = null; }
     if (isRecording && mediaRecorder) { try { mediaRecorder.stop(); } catch(_){} isRecording = false; }
     if (vadInstance) { try { vadInstance.pause(); vadInstance.destroy(); } catch(_){} vadInstance = null; }
     if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
