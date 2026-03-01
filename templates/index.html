@@ -660,12 +660,13 @@
   /* ═══════════════════════════════════════════════
      STATE
   ═══════════════════════════════════════════════ */
-  let sessionId     = null;
-  let mediaRecorder = null;
+  let sessionId      = null;
+  let mediaRecorder  = null;
   let recordingChunks = [];
-  let isRecording   = false;
-  let callActive    = false;
-  let mimeType      = 'audio/webm';
+  let isRecording    = false;
+  let callActive     = false;
+  let mimeType       = 'audio/webm';
+  let currentAudio   = null;   // track playing audio so we can interrupt it
 
   /* ── Platform & codec detection ── */
   const isIOS = /iphone|ipad|ipod|crios|fxios/i.test(navigator.userAgent);
@@ -730,6 +731,11 @@
     } else if (state === 'ready') {
       icon.textContent = '🎙';
       btn.disabled = false;
+    } else if (state === 'speaking') {
+      // Agent is speaking — mic stays enabled so user can interrupt
+      icon.textContent = '🎙';
+      btn.disabled = false;
+      btn.title = 'Interrupt & ask next question';
     } else if (state === 'recording') {
       btn.classList.add('recording');
       wrap.classList.add('recording');
@@ -788,6 +794,8 @@
         vizMode = 'speaking';
         showIdle(false);
         drawSpeaking();
+        setMicState('speaking');
+        setStatus('active', 'Speaking… (tap 🎙 to interrupt)');
         await playAudio(data.greeting_audio_url);
         stopViz();
         showIdle(true);
@@ -811,26 +819,36 @@
   function playAudio(url) {
     return new Promise((resolve) => {
       const audio = new Audio();
-      audio.preload  = 'auto';
+      audio.preload = 'auto';
+      currentAudio = audio;   // expose so mic button can interrupt
 
-      // iOS requires user-gesture unlock (we're inside button handler so it's fine)
       if (isIOS) {
         audio.setAttribute('playsinline', 'true');
         audio.setAttribute('webkit-playsinline', 'true');
       }
 
-      audio.onended  = resolve;
-      audio.onerror  = (e) => { console.warn('Audio playback error:', e); resolve(); };
+      audio.onended  = () => { currentAudio = null; resolve(); };
+      audio.onerror  = (e) => { console.warn('Audio playback error:', e); currentAudio = null; resolve(); };
       audio.oncanplaythrough = () => {
         audio.play().catch(e => {
           console.warn('audio.play() rejected:', e);
-          resolve();
+          currentAudio = null; resolve();
         });
       };
 
-      // Append cache-buster to avoid stale 404 on token routes
       audio.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
     });
+  }
+
+  /* Interrupt currently playing agent audio */
+  function interruptAudio() {
+    if (currentAudio) {
+      currentAudio.onended = null;
+      currentAudio.onerror = null;
+      currentAudio.pause();
+      currentAudio.src = '';
+      currentAudio = null;
+    }
   }
 
   /* ═══════════════════════════════════════════════
@@ -838,8 +856,17 @@
   ═══════════════════════════════════════════════ */
   document.getElementById('mic-btn').addEventListener('click', () => {
     if (!callActive) return;
-    if (isRecording) stopRecording();
-    else startRecording();
+    if (isRecording) {
+      stopRecording();
+    } else {
+      // If agent is speaking, interrupt it first then start recording
+      if (currentAudio) {
+        interruptAudio();
+        stopViz();
+        showToast('Interrupted — speak your question');
+      }
+      startRecording();
+    }
   });
 
   async function startRecording() {
@@ -928,7 +955,8 @@
         vizMode = 'speaking';
         showIdle(false);
         drawSpeaking();
-        setStatus('active', 'Speaking…');
+        setMicState('speaking');
+        setStatus('active', 'Speaking… (tap 🎙 to interrupt)');
         await playAudio(data.audio_url);
       }
 
