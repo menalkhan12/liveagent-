@@ -19,8 +19,9 @@
         body {
             font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
             background: var(--bg-dark);
-            background-image: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(56,189,248,0.15), transparent),
-                              radial-gradient(ellipse 60% 40% at 100% 100%, rgba(34,211,238,0.08), transparent);
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% 0%, rgba(56,189,248,0.15), transparent),
+                radial-gradient(ellipse 60% 40% at 100% 100%, rgba(34,211,238,0.08), transparent);
             min-height: 100vh; display: flex; align-items: center; justify-content: center;
             padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
                      max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
@@ -32,7 +33,7 @@
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
         }
         @media (max-width: 480px) { .container { padding: 24px 20px; } h1 { font-size: 20px !important; } }
-        .header { text-align: center; margin-bottom: 32px; }
+        .header { text-align: center; margin-bottom: 28px; }
         .logo {
             display: inline-flex; align-items: center; justify-content: center;
             width: 64px; height: 64px;
@@ -43,63 +44,65 @@
         h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.02em; }
         .subtitle { font-size: 14px; color: var(--text-muted); font-weight: 500; }
         .status {
-            padding: 16px 20px; background: var(--bg-elevated);
+            padding: 14px 18px; background: var(--bg-elevated);
             border-radius: 14px; border: 1px solid var(--border);
             color: var(--success); font-size: 14px; font-weight: 500;
-            margin-bottom: 24px; display: flex; align-items: center; gap: 10px;
+            margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+            transition: color 0.2s, border-color 0.2s;
         }
-        .status.recording { color: var(--accent); border-color: rgba(56,189,248,0.3); }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-        .status.recording .status-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
-        @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.2)} }
-        .button-group { display: flex; gap: 12px; margin-bottom: 16px; }
+        .status.active   { color: var(--accent);  border-color: rgba(56,189,248,0.3); }
+        .status.speaking { color: #a78bfa;         border-color: rgba(167,139,250,0.3); }
+        .status.heard    { color: #fbbf24;         border-color: rgba(251,191,36,0.3); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+        .status.active   .status-dot { animation: pulse 1.2s ease-in-out infinite; }
+        .status.speaking .status-dot { animation: pulse 0.7s ease-in-out infinite; }
+        .status.heard    .status-dot { animation: pulse 0.4s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(1.35)} }
+        .button-group { display: flex; gap: 12px; margin-bottom: 14px; }
         button {
-            flex: 1; padding: 18px 24px; min-height: 56px;
-            font-size: 16px; font-weight: 600; font-family: inherit;
+            flex: 1; padding: 16px 20px; min-height: 52px;
+            font-size: 15px; font-weight: 600; font-family: inherit;
             border: none; border-radius: 14px; cursor: pointer;
-            transition: all 0.2s ease; -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation; -webkit-touch-callout: none;
-            user-select: none; -webkit-user-select: none;
+            transition: all 0.15s ease; -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation; user-select: none; -webkit-user-select: none;
         }
-        #startBtn { background: linear-gradient(135deg, var(--success), #10b981); color: white; box-shadow: 0 4px 14px rgba(52,211,153,0.4); }
+        #startBtn { background: linear-gradient(135deg, var(--success), #10b981); color: #fff; box-shadow: 0 4px 14px rgba(52,211,153,0.35); }
+        #startBtn:active:not(:disabled) { transform: scale(0.97); }
         #startBtn:disabled { background: var(--bg-elevated); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
-        #endBtn { background: linear-gradient(135deg, var(--danger), #ef4444); color: white; box-shadow: 0 4px 14px rgba(248,113,113,0.3); }
+        #endBtn { background: linear-gradient(135deg, var(--danger), #ef4444); color: #fff; box-shadow: 0 4px 14px rgba(248,113,113,0.25); }
+        #endBtn:active:not(:disabled) { transform: scale(0.97); }
         #endBtn:disabled { background: var(--bg-elevated); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
         #recordBtn {
-            display: none; width: 100%; padding: 20px 24px; min-height: 60px;
+            display: none; width: 100%; padding: 20px; min-height: 60px;
             font-size: 17px; font-weight: 700; font-family: inherit;
             border: none; border-radius: 14px; cursor: pointer;
-            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-            margin-bottom: 16px;
+            -webkit-tap-highlight-color: transparent; touch-action: none;
+            margin-bottom: 14px;
             background: linear-gradient(135deg, var(--accent), #0ea5e9);
-            color: white; box-shadow: 0 4px 14px rgba(56,189,248,0.4);
-            transition: all 0.15s ease;
+            color: #fff; box-shadow: 0 4px 14px rgba(56,189,248,0.4);
+            transition: all 0.12s ease;
         }
-        #recordBtn.active {
-            background: linear-gradient(135deg, var(--danger), #ef4444);
-            box-shadow: 0 4px 20px rgba(248,113,113,0.6);
-            transform: scale(1.02);
-        }
+        #recordBtn.active { background: linear-gradient(135deg,var(--danger),#ef4444); box-shadow: 0 6px 24px rgba(248,113,113,0.55); transform: scale(1.03); }
         .transcript {
             background: var(--bg-dark); border: 1px solid var(--border);
-            border-radius: 16px; padding: 20px;
+            border-radius: 16px; padding: 18px;
             min-height: 200px; max-height: 340px;
             overflow-y: auto; -webkit-overflow-scrolling: touch;
         }
-        .message { margin: 10px 0; padding: 14px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; }
-        .user-msg { background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.2); margin-left: 20px; }
-        .agent-msg { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.15); margin-right: 20px; }
+        .message { margin: 10px 0; padding: 12px 14px; border-radius: 12px; font-size: 14px; line-height: 1.6; }
+        .user-msg  { background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.2); margin-left: 20px; }
+        .agent-msg { background: rgba(52,211,153,0.10); border: 1px solid rgba(52,211,153,0.15); margin-right: 20px; }
         .loading { color: var(--text-muted); font-size: 13px; font-style: italic; }
         .spinner {
-            display: inline-block; width: 14px; height: 14px;
+            display: inline-block; width: 13px; height: 13px;
             border: 2px solid var(--bg-elevated); border-top-color: var(--accent);
-            border-radius: 50%; animation: spin 0.8s linear infinite;
-            margin-right: 8px; vertical-align: middle;
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+            margin-right: 7px; vertical-align: middle;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .mode-hint { text-align: center; font-size: 12px; color: var(--text-muted); margin-bottom: 12px; min-height: 18px; }
-        .info { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 20px; font-size: 12px; color: var(--text-muted); }
-        .info span { display: flex; align-items: center; gap: 6px; }
+        .mode-hint { text-align: center; font-size: 12px; color: var(--text-muted); margin-bottom: 10px; min-height: 16px; }
+        .info { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 18px; font-size: 12px; color: var(--text-muted); }
+        .info span { display: flex; align-items: center; gap: 5px; }
     </style>
 </head>
 <body>
@@ -107,22 +110,25 @@
     <div class="header">
         <div class="logo">🎙️</div>
         <h1>Institute of Space Technology</h1>
-        <p class="subtitle">Voice Assistant — Ask anything about IST</p>
+        <p class="subtitle">Voice Assistant — Ask anything about admissions</p>
     </div>
-    <div class="status" id="statusDiv"><span class="status-dot"></span><strong>Ready</strong> — Click Start to begin</div>
+    <div class="status" id="statusDiv">
+        <span class="status-dot"></span>
+        <span id="statusText"><strong>Ready</strong> — Click Start to begin</span>
+    </div>
     <div class="button-group">
         <button id="startBtn" onclick="startCall()">▶ Start Call</button>
         <button id="endBtn" onclick="endCall()" disabled>■ End Call</button>
     </div>
-    <button id="recordBtn" id="recordBtn">🎤 Hold to Speak</button>
+    <button id="recordBtn">🎤 Hold to Speak</button>
     <div class="mode-hint" id="modeHint"></div>
     <div class="transcript" id="transcript">
         <p class="loading">Click "Start Call" to speak with the IST voice assistant.</p>
         <div id="transcriptStatus"></div>
     </div>
     <div class="info">
-        <span>🧠 Knowledge Base</span>
-        <span>🎯 Voice Detection</span>
+        <span>🧠 IST Knowledge Base</span>
+        <span>🎯 Smart VAD</span>
         <span>🔊 Natural Voice</span>
     </div>
 </div>
@@ -130,229 +136,230 @@
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/bundle.min.js"></script>
 <script>
-// ── State ──────────────────────────────────────────────────────────────────
-let sessionId = null, isCallActive = false;
-let stream = null, vadInstance = null;
-let currentAudio = null;
-let requestInFlight = false, greetingPlaying = false;
-let useManualMode = false;
-let mediaRecorder = null, recChunks = [], isRecording = false;
-let audioCtx = null;
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let sessionId        = null;
+let isCallActive     = false;
+let stream           = null;
+let vadInstance      = null;
+let currentAudio     = null;
+let requestInFlight  = false;
+let agentSpeaking    = false;   // true ONLY while TTS audio is playing
+let vadReady         = false;   // VAD initialized ok
+let useManualMode    = false;
+let mediaRecorder    = null;
+let recChunks        = [];
+let isRecording      = false;
+let audioCtx         = null;
+let vadCooldownTimer = null;    // prevents speaker-bleed false trigger after TTS ends
 
-// ── Device detection ───────────────────────────────────────────────────────
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isIOS     = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isAndroid = /Android/.test(navigator.userAgent);
 
-// ── WAV encoder (for VAD Float32 PCM output) ──────────────────────────────
+// ════════════════════════════════════════
+// WAV ENCODER  (VAD outputs Float32 16kHz)
+// ════════════════════════════════════════
 function encodeWAV(samples, sr) {
-    const nc = 1, bps = 16, br = sr * nc * 2;
     const ds = samples.length * 2;
     const buf = new ArrayBuffer(44 + ds);
     const v = new DataView(buf);
-    const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    const ws = (o, s) => { for (let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
     ws(0,'RIFF'); v.setUint32(4,36+ds,true); ws(8,'WAVE'); ws(12,'fmt ');
-    v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,nc,true);
-    v.setUint32(24,sr,true); v.setUint32(28,br,true);
-    v.setUint16(32,nc*2,true); v.setUint16(34,bps,true);
+    v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+    v.setUint32(24,sr,true); v.setUint32(28,sr*2,true);
+    v.setUint16(32,2,true);  v.setUint16(34,16,true);
     ws(36,'data'); v.setUint32(40,ds,true);
-    for (let i = 0; i < samples.length; i++) {
-        const s = Math.max(-1, Math.min(1, samples[i]));
-        v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    for (let i=0;i<samples.length;i++) {
+        const s = Math.max(-1,Math.min(1,samples[i]));
+        v.setInt16(44+i*2, s<0?s*0x8000:s*0x7FFF, true);
     }
     return buf;
 }
 
-// ── Convert any blob → WAV via AudioContext (cross-browser) ───────────────
 async function toWav(blob) {
     try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-        if (audioCtx.state === 'suspended') await audioCtx.resume();
-        const ab = await blob.arrayBuffer();
-        const decoded = await audioCtx.decodeAudioData(ab);
+        if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+        if (audioCtx.state==='suspended') await audioCtx.resume();
+        const decoded = await audioCtx.decodeAudioData(await blob.arrayBuffer());
         let ch = decoded.getChannelData(0);
         if (decoded.sampleRate !== 16000) {
             const ratio = decoded.sampleRate / 16000;
-            const out = new Float32Array(Math.round(ch.length / ratio));
-            for (let i = 0; i < out.length; i++) out[i] = ch[Math.round(i * ratio)];
+            const out   = new Float32Array(Math.round(ch.length/ratio));
+            for (let i=0;i<out.length;i++) out[i] = ch[Math.round(i*ratio)];
             ch = out;
         }
-        return new Blob([encodeWAV(ch, 16000)], { type: 'audio/wav' });
-    } catch (e) {
-        console.warn('toWav failed, sending original:', e);
-        return blob;
-    }
+        return new Blob([encodeWAV(ch,16000)],{type:'audio/wav'});
+    } catch(e) { return blob; }
 }
 
-// ── Best MIME type ─────────────────────────────────────────────────────────
 function bestMime() {
-    for (const t of ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg', '']) {
-        if (!t || (window.MediaRecorder && MediaRecorder.isTypeSupported(t))) return t;
+    for (const t of ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg','']) {
+        if (!t||(window.MediaRecorder&&MediaRecorder.isTypeSupported(t))) return t;
     }
     return '';
 }
 
-// ── iOS audio unlock — must call inside a user gesture ────────────────────
+// ═══════════════════════════════════════
+// AUDIO UNLOCK
+// ═══════════════════════════════════════
 async function unlockAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-    if (audioCtx.state === 'suspended') {
-        try { await audioCtx.resume(); } catch(_) {}
-    }
-    // Play a silent buffer to fully unlock iOS audio
+    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+    if (audioCtx.state==='suspended') { try { await audioCtx.resume(); } catch(_){} }
     try {
-        const buf = audioCtx.createBuffer(1, 1, 16000);
-        const src = audioCtx.createBufferSource();
-        src.buffer = buf;
-        src.connect(audioCtx.destination);
-        src.start(0);
-    } catch(_) {}
+        const b=audioCtx.createBuffer(1,1,16000), s=audioCtx.createBufferSource();
+        s.buffer=b; s.connect(audioCtx.destination); s.start(0);
+    } catch(_){}
 }
 
-// ── Play audio — iOS uses Web Audio API (unlocked at Start), others use HTML Audio ─
+// ═══════════════════════════════════════
+// VAD CONTROL
+// ═══════════════════════════════════════
+function startVAD() {
+    if (!vadInstance || !isCallActive || agentSpeaking || requestInFlight) return;
+    try { vadInstance.start(); } catch(_){}
+    setStatus('active','<strong>Listening</strong> — Speak your question');
+}
+
+function stopVAD() {
+    if (!vadInstance) return;
+    try { vadInstance.pause(); } catch(_){}
+}
+
+// Called after TTS finishes — adds cooldown to prevent speaker bleed
+// from immediately triggering VAD (echo of the agent's own voice)
+function resumeVADAfterSpeech() {
+    if (vadCooldownTimer) clearTimeout(vadCooldownTimer);
+    // 600ms cooldown: enough to clear speaker echo, short enough to feel responsive
+    vadCooldownTimer = setTimeout(() => {
+        vadCooldownTimer = null;
+        startVAD();
+    }, 600);
+}
+
+// ═══════════════════════════════════════
+// PLAYBACK
+// ═══════════════════════════════════════
 function playAudio(url, onDone) {
-    const stopCurrent = () => {
-        if (currentAudio) {
-            try {
-                if (currentAudio.pause) currentAudio.pause();
-                else if (currentAudio.stop) currentAudio.stop();
-            } catch(_) {}
-            currentAudio = null;
-        }
-    };
-    stopCurrent();
+    stopCurrentAudio();
 
-    // iOS: HTML Audio .play() is blocked when called from async callback (no user gesture).
-    // Web Audio API works because AudioContext was resumed during Start tap.
-    if (isIOS && audioCtx) {
-        (async () => {
-            try {
-                if (audioCtx.state === 'suspended') await audioCtx.resume();
-                const res = await fetch(url);
-                const ab = await res.arrayBuffer();
-                const buffer = await audioCtx.decodeAudioData(ab);
-                const src = audioCtx.createBufferSource();
-                src.buffer = buffer;
-                src.connect(audioCtx.destination);
-                src.onended = () => { currentAudio = null; if (onDone) onDone(); };
-                currentAudio = src;
-                src.start(audioCtx.currentTime + 0.01);  // Slight offset for Safari
-            } catch (err) {
-                console.warn('iOS Web Audio failed:', err);
-                currentAudio = null;
-                playAudioHTML(url, onDone);
-            }
-        })();
-        return;
-    }
+    // Stop VAD completely while agent is speaking
+    // This is the KEY fix: background voices, doors, typing cannot trigger VAD
+    stopVAD();
+    agentSpeaking = true;
+    setStatus('speaking','🔊 <strong>Speaking…</strong>');
 
-    playAudioHTML(url, onDone);
-}
-
-function playAudioHTML(url, onDone) {
     const a = new Audio();
-    a.setAttribute('playsinline', 'true');
-    a.setAttribute('webkit-playsinline', 'true');
+    a.setAttribute('playsinline','true');
+    a.setAttribute('webkit-playsinline','true');
     a.preload = 'auto';
     a.src = url;
     currentAudio = a;
-    a.onended = () => { currentAudio = null; if (onDone) onDone(); };
-    a.onerror = () => { currentAudio = null; if (onDone) onDone(); };
-    a.play().catch(err => {
-        console.warn('Audio play failed:', err);
+
+    const finish = () => {
         currentAudio = null;
+        agentSpeaking = false;
         if (onDone) onDone();
-    });
+        // Resume VAD after cooldown (not immediately — prevents speaker bleed)
+        if (vadReady && !requestInFlight) resumeVADAfterSpeech();
+        else if (!vadReady) {
+            setStatus('active','<strong>Ready</strong> — Hold button to speak');
+        }
+    };
+
+    a.onended = finish;
+    a.onerror = finish;
+
+    const p = a.play();
+    if (p && p.catch) {
+        p.catch(() => {
+            setTimeout(() => {
+                const a2 = new Audio(url);
+                a2.setAttribute('playsinline','true');
+                a2.setAttribute('webkit-playsinline','true');
+                currentAudio = a2;
+                a2.onended = finish; a2.onerror = finish;
+                a2.play().catch(finish);
+            }, 100);
+        });
+    }
 }
 
-// ── Status helpers ─────────────────────────────────────────────────────────
-function setStatus(html, rec = false) {
-    const el = document.getElementById('statusDiv');
-    el.innerHTML = `<span class="status-dot"></span>${html}`;
-    el.className = 'status' + (rec ? ' recording' : '');
+function stopCurrentAudio() {
+    if (currentAudio) {
+        try { currentAudio.pause(); currentAudio.src=''; } catch(_){}
+        currentAudio = null;
+    }
+    agentSpeaking = false;
+}
+
+// ═══════════════════════════════════════
+// STATUS
+// ═══════════════════════════════════════
+function setStatus(type, html) {
+    const el=document.getElementById('statusDiv');
+    const tx=document.getElementById('statusText');
+    el.className='status'+(type?' '+type:'');
+    if(tx) tx.innerHTML=html;
 }
 function addMsg(text, cls) {
-    const d = document.createElement('div');
-    d.className = `message ${cls}`;
-    d.textContent = text;
-    document.getElementById('transcript').appendChild(d);
-    const t = document.getElementById('transcript');
-    t.scrollTop = t.scrollHeight;
+    const d=document.createElement('div');
+    d.className='message '+cls; d.textContent=text;
+    const t=document.getElementById('transcript');
+    t.appendChild(d); t.scrollTop=t.scrollHeight;
 }
 function setProcessing(msg) {
-    const s = document.getElementById('transcriptStatus');
-    if (s) s.innerHTML = `<p class="loading"><span class="spinner"></span>${msg}</p>`;
-}
-function clearProcessing(msg = '') {
-    const s = document.getElementById('transcriptStatus');
-    if (s) s.innerHTML = msg ? `<p class="loading">${msg}</p>` : '';
+    const s=document.getElementById('transcriptStatus');
+    if(s) s.innerHTML=msg?`<p class="loading"><span class="spinner"></span>${msg}</p>`:'';
 }
 
-// ── Manual record (iOS / VAD fallback) ────────────────────────────────────
+// ═══════════════════════════════════════
+// MANUAL MODE (iOS + VAD fallback)
+// ═══════════════════════════════════════
 function showManualMode() {
     useManualMode = true;
     const btn = document.getElementById('recordBtn');
     btn.style.display = 'block';
-    document.getElementById('modeHint').textContent = isIOS
-        ? '📱 iPhone mode — Hold the button and speak, release when done'
-        : '📱 Hold the button to speak, release when done';
+    document.getElementById('modeHint').textContent =
+        isIOS ? '📱 iPhone — Hold button to speak, release when done'
+              : '📱 Hold button to speak, release when done';
 
-    // Touch events
     btn.addEventListener('touchstart', e => {
         e.preventDefault();
-        if (!isCallActive || requestInFlight || greetingPlaying || isRecording) return;
+        if (!isCallActive||requestInFlight||agentSpeaking||isRecording) return;
         startRec();
-    }, { passive: false });
-
-    const stopOnTouch = e => {
-        e.preventDefault();
-        if (isRecording) stopRec();
-    };
-    btn.addEventListener('touchend', stopOnTouch, { passive: false });
-    btn.addEventListener('touchcancel', stopOnTouch, { passive: false });
-
-    // Mouse events (desktop fallback)
-    btn.addEventListener('mousedown', () => {
-        if (!isCallActive || requestInFlight || greetingPlaying || isRecording) return;
-        startRec();
-    });
-    document.addEventListener('mouseup', () => { if (isRecording) stopRec(); });
+    }, {passive:false});
+    const stopT = e => { e.preventDefault(); if(isRecording) stopRec(); };
+    btn.addEventListener('touchend',    stopT, {passive:false});
+    btn.addEventListener('touchcancel', stopT, {passive:false});
+    btn.addEventListener('mousedown',  ()=>{ if(!isCallActive||requestInFlight||agentSpeaking||isRecording) return; startRec(); });
+    document.addEventListener('mouseup', ()=>{ if(isRecording) stopRec(); });
 }
 
 function startRec() {
     if (!stream) return;
     const mime = bestMime();
     try {
-        mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+        mediaRecorder = new MediaRecorder(stream, mime?{mimeType:mime}:{});
         recChunks = [];
-        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
+        mediaRecorder.ondataavailable = e => { if(e.data.size>0) recChunks.push(e.data); };
         mediaRecorder.start(100);
         isRecording = true;
-        const btn = document.getElementById('recordBtn');
-        btn.textContent = '🔴 Recording… Release to send';
-        btn.classList.add('active');
-        setStatus('<strong>Recording</strong> — Release button when done', true);
-    } catch(e) {
-        console.error('MediaRecorder error:', e);
-        setStatus('⚠️ Could not record. Try again.');
-    }
+        document.getElementById('recordBtn').textContent = '🔴 Recording… Release to send';
+        document.getElementById('recordBtn').classList.add('active');
+        setStatus('active','<strong>Recording</strong> — Release when done');
+    } catch(e) { console.error('MediaRecorder error:',e); }
 }
 
 async function stopRec() {
-    if (!isRecording || !mediaRecorder) return;
+    if (!isRecording||!mediaRecorder) return;
     isRecording = false;
-    const btn = document.getElementById('recordBtn');
-    btn.textContent = '🎤 Hold to Speak';
-    btn.classList.remove('active');
-    setStatus('<strong>Processing…</strong>', true);
-
+    document.getElementById('recordBtn').textContent = '🎤 Hold to Speak';
+    document.getElementById('recordBtn').classList.remove('active');
     await new Promise(resolve => {
         mediaRecorder.onstop = async () => {
-            const mime = bestMime();
-            const raw = new Blob(recChunks, { type: mime || 'audio/webm' });
-            if (raw.size < 500) {
-                setStatus('<strong>Ready</strong> — Hold button and speak clearly', true);
-                clearProcessing('Hold button and speak clearly…');
-                resolve(); return;
-            }
+            const raw = new Blob(recChunks,{type:bestMime()||'audio/webm'});
+            if (raw.size < 500) { setStatus('active','<strong>Ready</strong> — Hold button to speak'); resolve(); return; }
             const wav = await toWav(raw);
             await sendAudio(wav);
             resolve();
@@ -361,44 +368,43 @@ async function stopRec() {
     });
 }
 
-// ── Start Call ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════
+// START CALL
+// ═══════════════════════════════════════
 async function startCall() {
-    // MUST be inside user gesture — unlock audio here
     await unlockAudio();
-
     document.getElementById('startBtn').disabled = true;
-    setStatus('<strong>Starting…</strong> — Requesting microphone', true);
+    setStatus('active','<strong>Connecting…</strong>');
     document.getElementById('transcript').innerHTML =
-        '<p class="loading"><span class="spinner"></span>Starting call…</p><div id="transcriptStatus"></div>';
+        '<p class="loading"><span class="spinner"></span>Connecting…</p><div id="transcriptStatus"></div>';
 
-    // Mic permission
+    // Mic
     try {
         stream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
+            audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}
         });
     } catch(e) {
         let msg = '⚠️ Microphone access denied.';
-        if (e.name === 'NotFoundError') msg = '⚠️ No microphone found.';
-        else if (e.name === 'NotAllowedError') {
-            msg = isIOS
-                ? '⚠️ Allow mic: Settings → Safari → Microphone → Allow'
-                : '⚠️ Please allow microphone access and refresh.';
-        }
-        document.getElementById('transcript').innerHTML = `<p style="color:var(--danger);">${msg}</p>`;
-        document.getElementById('startBtn').disabled = false;
-        setStatus('<strong>Ready</strong> — Click Start to begin');
+        if (e.name==='NotFoundError')   msg = '⚠️ No microphone found.';
+        if (e.name==='NotAllowedError') msg = isIOS
+            ? '⚠️ iPhone: Settings → Safari → Microphone → Allow, then reload.'
+            : '⚠️ Please allow microphone access and reload.';
+        document.getElementById('transcript').innerHTML=`<p style="color:var(--danger);padding:10px;">${msg}</p>`;
+        document.getElementById('startBtn').disabled=false;
+        setStatus('','<strong>Ready</strong> — Click Start to begin');
         return;
     }
 
-    // Start server session
+    // Server session
     let data;
     try {
-        const r = await fetch('/api/start_call', { method: 'POST' });
+        const r = await fetch('/api/start_call',{method:'POST'});
         data = await r.json();
     } catch(e) {
-        document.getElementById('transcript').innerHTML = `<p style="color:var(--danger);">⚠️ Cannot connect to server. Check your connection.</p>`;
-        document.getElementById('startBtn').disabled = false;
-        stream.getTracks().forEach(t => t.stop());
+        document.getElementById('transcript').innerHTML=
+            '<p style="color:var(--danger);padding:10px;">⚠️ Cannot connect to server.</p>';
+        document.getElementById('startBtn').disabled=false;
+        stream.getTracks().forEach(t=>t.stop());
         return;
     }
 
@@ -406,174 +412,196 @@ async function startCall() {
     isCallActive = true;
     document.getElementById('endBtn').disabled = false;
 
-    // Try VAD — skip on iOS (ONNX/VAD doesn't work reliably on iOS Safari)
-    let vadOk = false;
+    // ── VAD init (Android/desktop only) ────────────────────────────────────
     if (!isIOS && typeof vad !== 'undefined') {
         try {
             vadInstance = await vad.MicVAD.new({
                 getStream: async () => stream,
+
+                // onSpeechStart: fires when VAD detects the START of speech.
+                // We use this to interrupt the agent if the user starts talking.
+                // NOTE: VAD is paused during agentSpeaking, so this will NOT
+                // fire for background noise while TTS is playing.
                 onSpeechStart: () => {
-                    // Interrupt agent audio if user starts speaking
-                    if (currentAudio && !greetingPlaying) {
-                        try { currentAudio.pause ? currentAudio.pause() : currentAudio.stop(); } catch(_){}
-                        currentAudio = null;
-                        requestInFlight = false;
-                    }
+                    setStatus('heard','🎤 <strong>Heard you…</strong>');
                 },
+
+                // onSpeechEnd: fires when VAD detects silence after speech.
+                // This is where we send audio to server.
+                // Guards:
+                //   requestInFlight → already processing, ignore
+                //   agentSpeaking   → should never happen (VAD paused), but double-guard
+                //   audio.length < 6400 → less than 400ms, ignore noise/clicks
                 onSpeechEnd: async (audio) => {
-                    if (!isCallActive || requestInFlight || greetingPlaying) return;
-                    if (audio.length < 8000) return;
-                    const blob = new Blob([encodeWAV(audio, 16000)], { type: 'audio/wav' });
+                    if (!isCallActive || requestInFlight || agentSpeaking) return;
+                    if (audio.length < 6400) return;  // < 400ms → noise, ignore
+                    const blob = new Blob([encodeWAV(audio,16000)],{type:'audio/wav'});
                     await sendAudio(blob);
                 },
-                positiveSpeechThreshold: 0.90,
-                negativeSpeechThreshold: 0.70,
-                minSpeechFrames: 8,
-                redemptionFrames: 10,
+
+                // ── VAD THRESHOLDS ──────────────────────────────────────────
+                // These are the most important settings for noise rejection.
+
+                // positiveSpeechThreshold (0-1):
+                // How confident the model must be that someone is SPEAKING.
+                // 0.85 = strict. Won't trigger on: doors, typing, background TV,
+                //        distant voices, coughing, paper rustling.
+                // Lower (0.6-0.7) = sensitive but more false triggers in noisy rooms.
+                positiveSpeechThreshold: 0.85,
+
+                // negativeSpeechThreshold (0-1):
+                // How low confidence drops before speech segment ENDS.
+                // Must be lower than positive. 0.40 = ends cleanly after real silence.
+                negativeSpeechThreshold: 0.40,
+
+                // minSpeechFrames: minimum consecutive speech frames (20ms each).
+                // 10 frames = 200ms. Anything shorter is ignored.
+                // Filters: door slams, claps, single coughs, keyboard clicks.
+                minSpeechFrames: 10,
+
+                // redemptionFrames: silent frames before ending the speech segment.
+                // 12 frames = 240ms of silence → ends utterance.
+                // Too high (20+) = feels laggy, waits too long after you stop talking.
+                // Too low (5-7)  = cuts you off mid-sentence.
+                redemptionFrames: 12,
+
+                // preSpeechPadFrames: frames of audio before detected speech to include.
+                // Prevents cutting off the first syllable of your question.
+                preSpeechPadFrames: 6,
+
                 onnxWASMBasePath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/',
-                baseAssetPath: 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/'
+                baseAssetPath:    'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/'
             });
-            vadOk = true;
+            vadReady = true;
+            console.log('VAD initialized OK');
         } catch(e) {
-            console.warn('VAD init failed, using manual mode:', e);
+            console.warn('VAD init failed → manual mode:', e);
         }
     }
 
-    if (!vadOk) showManualMode();
+    if (!vadReady) showManualMode();
 
-    // Show greeting
-    greetingPlaying = true;
-    setStatus('<strong>Connected</strong> — Playing greeting…', true);
+    // ── Greet ───────────────────────────────────────────────────────────────
     document.getElementById('transcript').innerHTML =
         '<div class="message agent-msg">🤖 Hello, this is Institute of Space Technology. How can I help you today?</div>' +
-        '<div id="transcriptStatus"><p class="loading" style="margin-top:10px;">Speak your question clearly.</p></div>';
-
-    const afterGreeting = () => {
-        greetingPlaying = false;
-        if (vadOk && vadInstance) {
-            vadInstance.start();
-            setStatus('<strong>Listening</strong> — Speak anytime', true);
-        } else {
-            setStatus('<strong>Ready</strong> — Hold the button and speak', true);
-            clearProcessing('Hold the button and speak your question…');
-        }
-    };
+        '<div id="transcriptStatus"><p class="loading" style="margin-top:8px;">Playing greeting…</p></div>';
 
     if (data.greeting_audio_url) {
-        if (vadOk && vadInstance) vadInstance.pause();
-        playAudio(data.greeting_audio_url, afterGreeting);
+        // Play greeting — VAD stays paused during this
+        playAudio(data.greeting_audio_url, () => {
+            setProcessing(vadReady ? 'Speak your question…' : 'Hold the button and speak your question…');
+        });
     } else {
-        afterGreeting();
+        agentSpeaking = false;
+        if (vadReady) resumeVADAfterSpeech();
+        else setStatus('active','<strong>Ready</strong> — Hold the button and speak');
     }
 }
 
-// ── Send audio to server ───────────────────────────────────────────────────
+// ═══════════════════════════════════════
+// SEND AUDIO
+// ═══════════════════════════════════════
 async function sendAudio(blob) {
-    if (!sessionId || !isCallActive) return;
+    if (!sessionId||!isCallActive) return;
+
     requestInFlight = true;
-    if (vadInstance) { try { vadInstance.pause(); } catch(_){} }
+    stopVAD();  // Keep VAD off during server round-trip
+    setProcessing('Processing…');
+    setStatus('active','<strong>Processing…</strong>');
 
-    setProcessing('Processing your question…');
-    setStatus('<strong>Processing…</strong>', true);
-
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 55000);
-    const longTid = setTimeout(() => {
-        if (requestInFlight) setProcessing('Taking a moment, please wait…');
-    }, 12000);
+    const ctrl  = new AbortController();
+    const tid   = setTimeout(()=>ctrl.abort(), 50000);
+    // Show "taking a moment" only after 15s — reduces perceived slowness
+    const longT = setTimeout(()=>{ if(requestInFlight) setProcessing('Taking a moment, please wait…'); }, 15000);
 
     try {
         const fd = new FormData();
         fd.append('session_id', sessionId);
         fd.append('audio', blob, 'audio.wav');
 
-        const res = await fetch('/api/query', { method: 'POST', body: fd, signal: ctrl.signal });
-        clearTimeout(tid); clearTimeout(longTid);
+        const res  = await fetch('/api/query',{method:'POST',body:fd,signal:ctrl.signal});
+        clearTimeout(tid); clearTimeout(longT);
         const data = await res.json();
 
         if (!res.ok || data.error) {
-            const msg = (data && data.error) || 'Something went wrong. Please try again.';
-            if (data && data.user_text) addMsg('🎤 ' + data.user_text, 'user-msg');
-            addMsg('🤖 ' + msg, 'agent-msg');
-            clearProcessing('Speak your question again…');
-            done();
+            const msg = (data&&data.error)||'Something went wrong. Try again.';
+            if (data&&data.user_text) addMsg('🎤 '+data.user_text,'user-msg');
+            addMsg('🤖 '+msg,'agent-msg');
+            setProcessing('Speak your question again…');
+            finishRequest();
             return;
         }
 
-        if (data.user_text) addMsg('🎤 ' + data.user_text, 'user-msg');
+        if (data.user_text) addMsg('🎤 '+data.user_text,'user-msg');
 
         if (data.audio_url && data.response) {
-            clearProcessing();
-            addMsg('🤖 ' + data.response, 'agent-msg');
+            setProcessing('');
+            addMsg('🤖 '+data.response,'agent-msg');
+            requestInFlight = false;  // Clear before playback so barge-in works
             playAudio(data.audio_url, () => {
-                clearProcessing('Speak your next question…');
-                done();
+                setProcessing(vadReady?'Speak your next question…':'Hold button to speak…');
             });
         } else if (data.response) {
-            clearProcessing();
-            addMsg('🤖 ' + data.response, 'agent-msg');
-            clearProcessing('Speak your next question…');
-            done();
+            setProcessing('');
+            addMsg('🤖 '+data.response,'agent-msg');
+            finishRequest();
         } else {
-            clearProcessing('Speak your next question…');
-            done();
+            finishRequest();
         }
+
     } catch(e) {
-        clearTimeout(tid); clearTimeout(longTid);
-        const msg = e.name === 'AbortError' ? 'Request timed out. Please try again.' : e.message;
-        addMsg('⚠️ ' + msg, 'message');
-        clearProcessing('Speak your question again…');
-        done();
+        clearTimeout(tid); clearTimeout(longT);
+        const msg = e.name==='AbortError'?'Request timed out. Try again.':e.message;
+        addMsg('⚠️ '+msg,'message');
+        setProcessing('Speak your question again…');
+        finishRequest();
     }
 }
 
-function done() {
+function finishRequest() {
     requestInFlight = false;
-    if (isCallActive) {
-        if (vadInstance) { try { vadInstance.start(); } catch(_){} }
-        setStatus(useManualMode ? '<strong>Ready</strong> — Hold button to speak' : '<strong>Listening</strong> — Speak anytime', true);
-    }
+    agentSpeaking   = false;
+    if (vadReady) resumeVADAfterSpeech();
+    else setStatus('active','<strong>Ready</strong> — Hold button to speak');
 }
 
-// ── End Call ───────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════
+// END CALL
+// ═══════════════════════════════════════
 async function endCall() {
     isCallActive = false;
-    if (currentAudio) { try { currentAudio.pause ? currentAudio.pause() : currentAudio.stop(); } catch(_){} currentAudio = null; }
-    if (isRecording && mediaRecorder) { try { mediaRecorder.stop(); } catch(_){} isRecording = false; }
-    if (vadInstance) { try { vadInstance.pause(); vadInstance.destroy(); } catch(_){} vadInstance = null; }
-    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-
+    if (vadCooldownTimer) { clearTimeout(vadCooldownTimer); vadCooldownTimer=null; }
+    stopCurrentAudio();
+    stopVAD();
+    if (isRecording&&mediaRecorder) { try{mediaRecorder.stop();}catch(_){} isRecording=false; }
+    if (vadInstance) { try{vadInstance.destroy();}catch(_){} vadInstance=null; }
+    if (stream) { stream.getTracks().forEach(t=>t.stop()); stream=null; }
     if (sessionId) {
-        try {
-            await fetch('/api/end_call', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_id: sessionId })
-            });
-        } catch(_){}
+        try { await fetch('/api/end_call',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId})}); } catch(_){}
     }
-
-    requestInFlight = false;
-    document.getElementById('endBtn').disabled = true;
+    requestInFlight=false; vadReady=false;
+    document.getElementById('endBtn').disabled   = true;
     document.getElementById('startBtn').disabled = false;
     document.getElementById('recordBtn').style.display = 'none';
     document.getElementById('modeHint').textContent = '';
     useManualMode = false;
-    setStatus('<strong>Ended</strong> — Click Start to begin again');
-    addMsg('✓ Call ended. Click Start to begin a new call.', 'agent-msg');
+    setStatus('','<strong>Ended</strong> — Click Start to begin again');
+    addMsg('✓ Call ended. Click Start to begin a new call.','agent-msg');
 }
 
-// ── Init ───────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
 window.addEventListener('load', () => {
     document.getElementById('startBtn').focus();
-    if (isIOS) document.getElementById('modeHint').textContent = '📱 iPhone detected — tap Start, then hold button to speak';
-    // Pre-create AudioContext on first touch (iOS requirement)
+    if (isIOS) document.getElementById('modeHint').textContent =
+        '📱 iPhone detected — tap Start, then hold button to speak';
     const unlock = () => {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-        if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+        if (!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+        if (audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
     };
-    document.addEventListener('touchstart', unlock, { once: true, passive: true });
-    document.addEventListener('click', unlock, { once: true });
+    document.addEventListener('touchstart', unlock, {once:true,passive:true});
+    document.addEventListener('click',      unlock, {once:true});
 });
 </script>
 </body>
