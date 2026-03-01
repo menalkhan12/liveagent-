@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="theme-color" content="#0f172a">
     <title>IST Voice Assistant | Institute of Space Technology</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -30,7 +32,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 24px;
+            padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
             color: var(--text);
         }
         .container {
@@ -42,10 +44,11 @@
             width: 100%;
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
         }
-        .header {
-            text-align: center;
-            margin-bottom: 32px;
+        @media (max-width: 480px) {
+            .container { padding: 24px 20px; border-radius: 16px; }
+            h1 { font-size: 20px !important; }
         }
+        .header { text-align: center; margin-bottom: 32px; }
         .logo {
             display: inline-flex;
             align-items: center;
@@ -65,11 +68,7 @@
             margin-bottom: 6px;
             letter-spacing: -0.02em;
         }
-        .subtitle {
-            font-size: 14px;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
+        .subtitle { font-size: 14px; color: var(--text-muted); font-weight: 500; }
         .status {
             padding: 16px 20px;
             background: var(--bg-elevated);
@@ -83,33 +82,19 @@
             align-items: center;
             gap: 10px;
         }
-        .status.recording {
-            color: var(--accent);
-            border-color: rgba(56,189,248,0.3);
-        }
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-        }
-        .status.recording .status-dot {
-            animation: pulse-dot 1.2s ease-in-out infinite;
-        }
+        .status.recording { color: var(--accent); border-color: rgba(56,189,248,0.3); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+        .status.recording .status-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
         @keyframes pulse-dot {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.5; transform: scale(1.2); }
         }
-        .button-group {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
+        .button-group { display: flex; gap: 12px; margin-bottom: 24px; }
         button {
             flex: 1;
-            padding: 16px 24px;
-            min-height: 48px;
-            font-size: 15px;
+            padding: 18px 24px;
+            min-height: 56px;
+            font-size: 16px;
             font-weight: 600;
             font-family: inherit;
             border: none;
@@ -118,37 +103,46 @@
             transition: all 0.2s ease;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            -webkit-touch-callout: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        #startBtn {
-            background: linear-gradient(135deg, var(--success), #10b981);
+        #startBtn { background: linear-gradient(135deg, var(--success), #10b981); color: white; box-shadow: 0 4px 14px rgba(52,211,153,0.4); }
+        #startBtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(52,211,153,0.5); }
+        #startBtn:disabled { background: var(--bg-elevated); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
+        #endBtn { background: linear-gradient(135deg, var(--danger), #ef4444); color: white; box-shadow: 0 4px 14px rgba(248,113,113,0.3); }
+        #endBtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(248,113,113,0.4); }
+        #endBtn:disabled { background: var(--bg-elevated); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
+
+        /* Manual record button for iOS fallback */
+        #recordBtn {
+            display: none;
+            width: 100%;
+            padding: 18px 24px;
+            min-height: 56px;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: inherit;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--accent), #0ea5e9);
             color: white;
-            box-shadow: 0 4px 14px rgba(52,211,153,0.4);
+            box-shadow: 0 4px 14px rgba(56,189,248,0.4);
         }
-        #startBtn:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(52,211,153,0.5);
-        }
-        #startBtn:disabled {
-            background: var(--bg-elevated);
-            color: var(--text-muted);
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-        #endBtn {
+        #recordBtn.recording-active {
             background: linear-gradient(135deg, var(--danger), #ef4444);
-            color: white;
-            box-shadow: 0 4px 14px rgba(248,113,113,0.3);
+            box-shadow: 0 4px 14px rgba(248,113,113,0.4);
+            animation: pulse-btn 1.2s ease-in-out infinite;
         }
-        #endBtn:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(248,113,113,0.4);
+        @keyframes pulse-btn {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
         }
-        #endBtn:disabled {
-            background: var(--bg-elevated);
-            color: var(--text-muted);
-            cursor: not-allowed;
-            box-shadow: none;
-        }
+
         .transcript {
             background: var(--bg-dark);
             border: 1px solid var(--border);
@@ -157,32 +151,15 @@
             min-height: 180px;
             max-height: 320px;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
         .transcript::-webkit-scrollbar { width: 6px; }
         .transcript::-webkit-scrollbar-track { background: transparent; }
         .transcript::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 3px; }
-        .message {
-            margin: 12px 0;
-            padding: 14px 16px;
-            border-radius: 12px;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        .user-message {
-            background: rgba(56,189,248,0.12);
-            border: 1px solid rgba(56,189,248,0.2);
-            margin-left: 24px;
-        }
-        .agent-message {
-            background: rgba(52,211,153,0.1);
-            border: 1px solid rgba(52,211,153,0.15);
-            margin-right: 24px;
-        }
-        .loading {
-            color: var(--text-muted);
-            font-size: 13px;
-            font-style: italic;
-        }
+        .message { margin: 12px 0; padding: 14px 16px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+        .user-message { background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.2); margin-left: 24px; }
+        .agent-message { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.15); margin-right: 24px; }
+        .loading { color: var(--text-muted); font-size: 13px; font-style: italic; }
         .spinner {
             display: inline-block;
             width: 14px;
@@ -195,16 +172,17 @@
             vertical-align: middle;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .info {
-            display: flex;
-            justify-content: center;
-            gap: 16px;
-            flex-wrap: wrap;
-            margin-top: 20px;
-            font-size: 12px;
-            color: var(--text-muted);
-        }
+        .info { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 20px; font-size: 12px; color: var(--text-muted); }
         .info span { display: flex; align-items: center; gap: 6px; }
+
+        /* Device mode badge */
+        .mode-badge {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -212,7 +190,7 @@
         <div class="header">
             <div class="logo">🎙️</div>
             <h1>Institute of Space Technology</h1>
-            <p class="subtitle">Voice Assistant — Speak naturally, interrupt anytime</p>
+            <p class="subtitle">Voice Assistant — Ask anything about IST</p>
         </div>
 
         <div class="status" id="statusDiv">
@@ -225,8 +203,15 @@
             <button id="endBtn" onclick="endCall()" disabled>End Call</button>
         </div>
 
+        <!-- Manual record button: shown on iOS / devices where VAD fails -->
+        <button id="recordBtn" ontouchstart="handleRecordTouch(event)" onmousedown="handleRecordMouse()">
+            🎤 Hold to Speak
+        </button>
+
+        <div class="mode-badge" id="modeBadge"></div>
+
         <div class="transcript" id="transcript">
-            <p class="loading">Click "Start Call" to speak with the IST assistant. You can interrupt while it's speaking — only your voice is detected, not background noise.</p>
+            <p class="loading">Click "Start Call" to speak with the IST assistant.</p>
             <div id="transcriptStatus"></div>
         </div>
 
@@ -237,77 +222,284 @@
         </div>
     </div>
 
+    <!-- VAD libraries -->
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/bundle.min.js"></script>
+
     <script>
-        let sessionId = null;
-        let isCallActive = false;
-        let stream = null;
-        let vadInstance = null;
-        let currentAgentAudio = null;
-        let requestInFlight = false;
-        let greetingPlaying = false;
+    // ─── State ────────────────────────────────────────────────────────────────
+    let sessionId = null;
+    let isCallActive = false;
+    let stream = null;
+    let vadInstance = null;
+    let currentAgentAudio = null;
+    let requestInFlight = false;
+    let greetingPlaying = false;
+    let useManualMode = false;       // true = iOS/fallback: manual hold-to-record
+    let manualMediaRecorder = null;
+    let manualChunks = [];
+    let isManualRecording = false;
+    let audioContext = null;
 
-        function encodeWAV(samples, sampleRate) {
-            const numChannels = 1;
-            const format = 1;
-            const bitsPerSample = 16;
-            const bytesPerSample = bitsPerSample / 8;
-            const blockAlign = numChannels * bytesPerSample;
-            const byteRate = sampleRate * blockAlign;
-            const dataSize = samples.length * bytesPerSample;
-            const buffer = new ArrayBuffer(44 + dataSize);
-            const view = new DataView(buffer);
-            const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
-            writeStr(0, 'RIFF');
-            view.setUint32(4, 36 + dataSize, true);
-            writeStr(8, 'WAVE');
-            writeStr(12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, format, true);
-            view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, byteRate, true);
-            view.setUint16(32, blockAlign, true);
-            view.setUint16(34, bitsPerSample, true);
-            writeStr(36, 'data');
-            view.setUint32(40, dataSize, true);
-            for (let i = 0; i < samples.length; i++) {
-                const s = Math.max(-1, Math.min(1, samples[i]));
-                view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    // ─── Device / Browser Detection ──────────────────────────────────────────
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+
+    // Get best supported MIME type for this device
+    function getSupportedMimeType() {
+        const types = [
+            'audio/wav',
+            'audio/mp4',
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/ogg;codecs=opus',
+            'audio/ogg',
+            ''
+        ];
+        for (const type of types) {
+            if (type === '' || (window.MediaRecorder && MediaRecorder.isTypeSupported(type))) {
+                return type;
             }
-            return buffer;
         }
+        return '';
+    }
 
-        function unlockAudio() {
+    // ─── WAV Encoder (for VAD output — Float32 PCM → WAV) ───────────────────
+    function encodeWAV(samples, sampleRate) {
+        const numChannels = 1;
+        const bitsPerSample = 16;
+        const bytesPerSample = bitsPerSample / 8;
+        const byteRate = sampleRate * numChannels * bytesPerSample;
+        const dataSize = samples.length * bytesPerSample;
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+        const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+        writeStr(0, 'RIFF');
+        view.setUint32(4, 36 + dataSize, true);
+        writeStr(8, 'WAVE');
+        writeStr(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);      // PCM
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, byteRate, true);
+        view.setUint16(32, numChannels * bytesPerSample, true);
+        view.setUint16(34, bitsPerSample, true);
+        writeStr(36, 'data');
+        view.setUint32(40, dataSize, true);
+        for (let i = 0; i < samples.length; i++) {
+            const s = Math.max(-1, Math.min(1, samples[i]));
+            view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        }
+        return buffer;
+    }
+
+    // Convert any recorded blob to WAV via AudioContext for server compatibility
+    async function blobToWav(blob) {
+        try {
+            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const arrayBuf = await blob.arrayBuffer();
+            const audioBuf = await audioContext.decodeAudioData(arrayBuf);
+            const samples = audioBuf.getChannelData(0);
+            // Resample to 16kHz if needed
+            let finalSamples = samples;
+            if (audioBuf.sampleRate !== 16000) {
+                const ratio = audioBuf.sampleRate / 16000;
+                const newLen = Math.round(samples.length / ratio);
+                finalSamples = new Float32Array(newLen);
+                for (let i = 0; i < newLen; i++) {
+                    finalSamples[i] = samples[Math.round(i * ratio)];
+                }
+            }
+            return new Blob([encodeWAV(finalSamples, 16000)], { type: 'audio/wav' });
+        } catch (e) {
+            console.warn('blobToWav failed, sending original:', e);
+            return blob;
+        }
+    }
+
+    // ─── iOS Audio Unlock ─────────────────────────────────────────────────────
+    function unlockAudio() {
+        return new Promise(resolve => {
             try {
+                // Resume AudioContext if suspended (required on iOS)
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume().then(resolve).catch(resolve);
+                    return;
+                }
                 const a = new Audio();
+                a.setAttribute("playsinline", "true");
+                a.setAttribute("webkit-playsinline", "true");
                 a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
-                a.play().catch(() => {});
-            } catch (_) {}
+                a.volume = 0.001;
+                a.onended = resolve;
+                a.onerror = resolve;
+                const p = a.play();
+                if (p) p.then(resolve).catch(resolve);
+                else resolve();
+            } catch (_) { resolve(); }
+        });
+    }
+
+    function makeAudioElement(url) {
+        const a = new Audio(url);
+        a.setAttribute("playsinline", "true");
+        a.setAttribute("webkit-playsinline", "true");
+        a.preload = "auto";
+        a.volume = 1;
+        return a;
+    }
+
+    // ─── Manual Record Mode (iOS / VAD fallback) ──────────────────────────────
+    function showManualMode() {
+        useManualMode = true;
+        document.getElementById('recordBtn').style.display = 'block';
+        document.getElementById('modeBadge').textContent = isIOS
+            ? '📱 iOS mode — Hold the button to speak'
+            : '📱 Manual mode — Hold the button to speak';
+    }
+
+    function handleRecordTouch(e) {
+        e.preventDefault();
+        if (!isCallActive || requestInFlight || greetingPlaying) return;
+        if (isManualRecording) return;
+        startManualRecording();
+
+        // Listen for touchend / touchcancel anywhere on document
+        const stop = (ev) => {
+            ev.preventDefault();
+            stopManualRecording();
+            document.removeEventListener('touchend', stop);
+            document.removeEventListener('touchcancel', stop);
+        };
+        document.addEventListener('touchend', stop, { passive: false });
+        document.addEventListener('touchcancel', stop, { passive: false });
+    }
+
+    function handleRecordMouse() {
+        if (!isCallActive || requestInFlight || greetingPlaying) return;
+        if (isManualRecording) return;
+        startManualRecording();
+
+        const stop = () => {
+            stopManualRecording();
+            document.removeEventListener('mouseup', stop);
+        };
+        document.addEventListener('mouseup', stop);
+    }
+
+    function startManualRecording() {
+        if (!stream) return;
+        const mimeType = getSupportedMimeType();
+        try {
+            const options = mimeType ? { mimeType } : {};
+            manualMediaRecorder = new MediaRecorder(stream, options);
+            manualChunks = [];
+            manualMediaRecorder.ondataavailable = e => { if (e.data.size > 0) manualChunks.push(e.data); };
+            manualMediaRecorder.start(100);
+            isManualRecording = true;
+
+            const btn = document.getElementById('recordBtn');
+            btn.textContent = '🔴 Recording... Release to send';
+            btn.classList.add('recording-active');
+
+            const statusEl = document.getElementById('statusDiv');
+            statusEl.innerHTML = '<span class="status-dot"></span><strong>Recording</strong> — Release when done speaking';
+            statusEl.classList.add('recording');
+        } catch (e) {
+            console.error('MediaRecorder error:', e);
+            setStatus('⚠️ Could not start recording. Try refreshing.');
+        }
+    }
+
+    async function stopManualRecording() {
+        if (!isManualRecording || !manualMediaRecorder) return;
+        isManualRecording = false;
+
+        const btn = document.getElementById('recordBtn');
+        btn.textContent = '🎤 Hold to Speak';
+        btn.classList.remove('recording-active');
+
+        const statusEl = document.getElementById('statusDiv');
+        statusEl.innerHTML = '<span class="status-dot"></span><strong>Processing...</strong>';
+
+        return new Promise(resolve => {
+            manualMediaRecorder.onstop = async () => {
+                const mimeType = getSupportedMimeType();
+                const rawBlob = new Blob(manualChunks, { type: mimeType || 'audio/webm' });
+                if (rawBlob.size < 1000) {
+                    setStatus('⚠️ Audio too short. Hold and speak clearly.');
+                    resolve();
+                    return;
+                }
+                // Convert to WAV for Whisper compatibility
+                const wavBlob = await blobToWav(rawBlob);
+                await sendAudioToServer(wavBlob);
+                resolve();
+            };
+            manualMediaRecorder.stop();
+        });
+    }
+
+    // ─── Status Helper ────────────────────────────────────────────────────────
+    function setStatus(msg, isRecording = false) {
+        const el = document.getElementById('statusDiv');
+        el.innerHTML = `<span class="status-dot"></span>${msg}`;
+        if (isRecording) el.classList.add('recording');
+        else el.classList.remove('recording');
+    }
+
+    // ─── Start Call ───────────────────────────────────────────────────────────
+    async function startCall() {
+        // Unlock audio context on user gesture (required for iOS)
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        await unlockAudio();
+
+        document.getElementById('startBtn').disabled = true;
+        setStatus('<strong>Starting</strong> — Requesting microphone...', true);
+        document.getElementById('transcript').innerHTML = '<p class="loading"><span class="spinner"></span>Starting call...</p><div id="transcriptStatus"></div>';
+
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    sampleRate: { ideal: 16000 },
+                    channelCount: 1
+                }
+            });
+        } catch (e) {
+            let msg = '⚠️ Microphone access denied.';
+            if (e.name === 'NotFoundError') msg = '⚠️ No microphone found on this device.';
+            else if (e.name === 'NotAllowedError') msg = '⚠️ Please allow microphone access and try again.';
+            document.getElementById('transcript').innerHTML = `<p style="color:var(--danger);">${msg}</p><p style="font-size:12px;color:var(--text-muted);margin-top:8px;">On iPhone: Settings → Safari → Microphone → Allow</p>`;
+            document.getElementById('startBtn').disabled = false;
+            setStatus('<strong>Ready</strong> — Click Start to begin');
+            return;
         }
 
-        async function startCall() {
-            unlockAudio();
+        // Start the server session
+        let data;
+        try {
+            const resp = await fetch('/api/start_call', { method: 'POST' });
+            data = await resp.json();
+        } catch (e) {
+            document.getElementById('transcript').innerHTML = `<p style="color:var(--danger);">⚠️ Could not connect to server. Check your connection.</p>`;
+            document.getElementById('startBtn').disabled = false;
+            stream.getTracks().forEach(t => t.stop());
+            return;
+        }
+
+        sessionId = data.session_id;
+        isCallActive = true;
+        document.getElementById('endBtn').disabled = false;
+
+        // Try VAD first. If it fails (common on iOS Safari), fall back to manual mode.
+        let vadOk = false;
+        if (!isIOS && typeof vad !== 'undefined') {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                });
-                document.getElementById('startBtn').disabled = true;
-                document.getElementById('statusDiv').innerHTML = '<span class="status-dot"></span><strong>Starting</strong> — Connecting...';
-                document.getElementById('statusDiv').classList.add('recording');
-                document.getElementById('transcript').innerHTML = '<p class="loading"><span class="spinner"></span>Starting call...</p><div id="transcriptStatus"></div>';
-
-                const response = await fetch('/api/start_call', { method: 'POST' });
-                const data = await response.json();
-                sessionId = data.session_id;
-                isCallActive = true;
-                document.getElementById('endBtn').disabled = false;
-
                 vadInstance = await vad.MicVAD.new({
                     getStream: async () => stream,
                     onSpeechStart: () => {
@@ -320,182 +512,262 @@
                     },
                     onSpeechEnd: async (audio) => {
                         if (!isCallActive || requestInFlight || greetingPlaying) return;
-                        if (audio.length < 16000) return;
+                        if (audio.length < 8000) return;  // ~0.5s minimum
                         const wav = encodeWAV(audio, 16000);
                         const blob = new Blob([wav], { type: 'audio/wav' });
                         await sendAudioToServer(blob);
                     },
-                    positiveSpeechThreshold: 0.92,
-                    negativeSpeechThreshold: 0.75,
-                    minSpeechFrames: 12,
-                    redemptionFrames: 12,
+                    positiveSpeechThreshold: 0.90,
+                    negativeSpeechThreshold: 0.70,
+                    minSpeechFrames: 8,
+                    redemptionFrames: 10,
                     onnxWASMBasePath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/',
                     baseAssetPath: 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/'
                 });
-                greetingPlaying = true;
-                vadInstance.start();
-                vadInstance.pause();
-
-                document.getElementById('statusDiv').innerHTML = '<span class="status-dot"></span><strong>Listening</strong> — Speak anytime, even to interrupt';
-                document.getElementById('transcript').innerHTML = '<div class="message agent-message">🤖 Hello, this is Institute of Space Technology. How can I help you today?</div><div id="transcriptStatus"><p class="loading" style="margin-top: 10px;">Speak your question clearly — I filter out background noise.</p></div>';
-
-                if (data.greeting_audio_url) {
-                    currentAgentAudio = new Audio(data.greeting_audio_url);
-                    currentAgentAudio.setAttribute("playsinline", "true");
-                    currentAgentAudio.onended = () => {
-                        currentAgentAudio = null;
-                        greetingPlaying = false;
-                        vadInstance.start();
-                    };
-                    currentAgentAudio.play();
-                } else {
-                    greetingPlaying = false;
-                    vadInstance.start();
-                }
-            } catch (error) {
-                document.getElementById('transcript').innerHTML = `<p style="color: var(--danger);">⚠️ ${error.message}</p><p style="font-size: 12px; color: var(--text-muted);">Allow microphone access and try again.</p>`;
-                document.getElementById('startBtn').disabled = false;
+                vadOk = true;
+            } catch (e) {
+                console.warn('VAD init failed, switching to manual mode:', e);
             }
         }
 
-        async function sendAudioToServer(audioBlob) {
-            if (!sessionId || !isCallActive) return;
-            requestInFlight = true;
+        if (!vadOk) {
+            showManualMode();
+        }
 
-            const statusEl = document.getElementById('transcriptStatus');
-            if (statusEl) statusEl.innerHTML = '<p class="loading"><span class="spinner"></span>Processing your question...</p>';
+        // Show greeting
+        greetingPlaying = true;
+        setStatus('<strong>Listening</strong> — Speak anytime', true);
+        document.getElementById('transcript').innerHTML =
+            '<div class="message agent-message">🤖 Hello, this is Institute of Space Technology. How can I help you today?</div>' +
+            '<div id="transcriptStatus"><p class="loading" style="margin-top:10px;">Speak your question clearly.</p></div>';
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 50000);
+        const onGreetingDone = () => {
+            greetingPlaying = false;
+            if (vadOk && vadInstance) {
+                vadInstance.start();
+            } else {
+                setStatus('<strong>Ready</strong> — Hold the button and speak', true);
+            }
+        };
 
-            const longMsgId = setTimeout(() => {
-                if (statusEl && requestInFlight) statusEl.innerHTML = '<p class="loading"><span class="spinner"></span>Taking longer than usual...</p>';
-            }, 12000);
+        if (data.greeting_audio_url) {
+            currentAgentAudio = makeAudioElement(data.greeting_audio_url);
+            currentAgentAudio.onended = () => { currentAgentAudio = null; onGreetingDone(); };
+            currentAgentAudio.onerror = () => { currentAgentAudio = null; onGreetingDone(); };
 
+            // iOS requires play() inside a user-gesture chain. We started with startCall button,
+            // so this should work. If it fails, skip greeting and just go live.
             try {
-                const formData = new FormData();
-                formData.append('session_id', sessionId);
-                formData.append('audio', audioBlob, 'audio.wav');
+                await currentAgentAudio.play();
+            } catch (e) {
+                console.warn('Greeting audio blocked:', e);
+                currentAgentAudio = null;
+                onGreetingDone();
+            }
+        } else {
+            onGreetingDone();
+        }
 
-                const response = await fetch('/api/query', { method: 'POST', body: formData, signal: controller.signal });
-                clearTimeout(timeoutId);
-                clearTimeout(longMsgId);
-                const data = await response.json();
+        if (vadOk && vadInstance) {
+            vadInstance.pause(); // Start paused, resume after greeting
+        }
+    }
 
-                if (!response.ok) {
-                    clearTimeout(timeoutId);
-                    clearTimeout(longMsgId);
-                    const msg = data.error || 'Something went wrong. Please try again.';
-                    if (statusEl) statusEl.innerHTML = '';
-                    const errDiv = document.createElement('div');
-                    errDiv.className = 'message';
-                    errDiv.style.background = 'rgba(248,113,113,0.15)';
-                    errDiv.style.borderColor = 'rgba(248,113,113,0.3)';
-                    errDiv.textContent = '⚠️ ' + msg;
-                    document.getElementById('transcript').appendChild(errDiv);
-                    if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your question again...</p>';
-                    requestInFlight = false;
-                    return;
-                }
+    // ─── Send Audio to Server ─────────────────────────────────────────────────
+    async function sendAudioToServer(audioBlob) {
+        if (!sessionId || !isCallActive) return;
+        requestInFlight = true;
 
-                if (data.error) {
-                    clearTimeout(timeoutId);
-                    clearTimeout(longMsgId);
-                    if (statusEl) statusEl.innerHTML = '';
-                    const userDiv = document.createElement('div');
-                    userDiv.className = 'message user-message';
-                    userDiv.textContent = '🎤 ' + (data.user_text || 'Your question');
-                    document.getElementById('transcript').appendChild(userDiv);
-                    const errDiv = document.createElement('div');
-                    errDiv.className = 'message agent-message';
-                    errDiv.textContent = '🤖 ' + data.error;
-                    document.getElementById('transcript').appendChild(errDiv);
-                    if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your question again...</p>';
-                    requestInFlight = false;
-                    return;
-                }
+        // Pause VAD while waiting for response
+        if (vadInstance) { try { vadInstance.pause(); } catch(_){} }
 
-                if (data.user_text) {
+        const statusEl = document.getElementById('transcriptStatus');
+        if (statusEl) statusEl.innerHTML = '<p class="loading"><span class="spinner"></span>Processing your question...</p>';
+
+        setStatus('<strong>Processing</strong>...', true);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 55000);
+        const longMsgId = setTimeout(() => {
+            if (statusEl && requestInFlight) statusEl.innerHTML = '<p class="loading"><span class="spinner"></span>Taking a moment...</p>';
+        }, 12000);
+
+        try {
+            const formData = new FormData();
+            formData.append('session_id', sessionId);
+            formData.append('audio', audioBlob, 'audio.wav');
+
+            const response = await fetch('/api/query', { method: 'POST', body: formData, signal: controller.signal });
+            clearTimeout(timeoutId);
+            clearTimeout(longMsgId);
+            const data = await response.json();
+
+            if (!response.ok || data.error) {
+                const msg = (data && data.error) ? data.error : 'Something went wrong. Please try again.';
+                if (statusEl) statusEl.innerHTML = '';
+                // Show user text if available
+                if (data && data.user_text) {
                     const userDiv = document.createElement('div');
                     userDiv.className = 'message user-message';
                     userDiv.textContent = '🎤 ' + data.user_text;
                     document.getElementById('transcript').appendChild(userDiv);
                 }
-
-                if (data.audio_url) {
-                    if (!isCallActive) { requestInFlight = false; return; }
-                    if (statusEl) statusEl.innerHTML = '';
-                    const agentDiv = document.createElement('div');
-                    agentDiv.className = 'message agent-message';
-                    agentDiv.textContent = '🤖 ' + (data.response || '[Playing response...]');
-                    document.getElementById('transcript').appendChild(agentDiv);
-                    currentAgentAudio = new Audio(data.audio_url);
-                    currentAgentAudio.setAttribute("playsinline", "true");
-                    currentAgentAudio.onerror = () => {
-                        requestInFlight = false;
-                        if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your next question...</p>';
-                    };
-                    currentAgentAudio.onended = () => {
-                        if (!isCallActive) return;
-                        currentAgentAudio = null;
-                        requestInFlight = false;
-                        const s = document.getElementById('transcriptStatus');
-                        if (s) s.innerHTML = '<p class="loading">Speak your next question...</p>';
-                    };
-                    currentAgentAudio.play();
-                } else if (data.response) {
-                    if (statusEl) statusEl.innerHTML = '';
-                    const agentDiv = document.createElement('div');
-                    agentDiv.className = 'message agent-message';
-                    agentDiv.textContent = '🤖 ' + data.response;
-                    document.getElementById('transcript').appendChild(agentDiv);
-                    if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your next question...</p>';
-                    requestInFlight = false;
-                } else {
-                    if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your next question...</p>';
-                    requestInFlight = false;
-                }
-            } catch (error) {
-                clearTimeout(timeoutId);
-                clearTimeout(longMsgId);
-                if (statusEl) statusEl.innerHTML = '';
                 const errDiv = document.createElement('div');
-                errDiv.className = 'message';
-                errDiv.style.background = 'rgba(248,113,113,0.15)';
-                errDiv.style.borderColor = 'rgba(248,113,113,0.3)';
-                const msg = (error.name === 'AbortError') ? 'Request timed out. Please try again.' : error.message;
-                errDiv.textContent = '⚠️ ' + msg;
+                errDiv.className = 'message agent-message';
+                errDiv.textContent = '🤖 ' + msg;
                 document.getElementById('transcript').appendChild(errDiv);
                 if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your question again...</p>';
                 requestInFlight = false;
+                resumeVAD();
+                setStatus('<strong>Listening</strong> — Speak anytime', true);
+                return;
             }
-        }
 
-        async function endCall() {
-            try {
-                isCallActive = false;
-                if (currentAgentAudio) { currentAgentAudio.pause(); currentAgentAudio.currentTime = 0; currentAgentAudio = null; }
-                if (vadInstance) { vadInstance.pause(); vadInstance.destroy(); vadInstance = null; }
-                if (stream) stream.getTracks().forEach(t => t.stop());
-                if (sessionId) {
-                    await fetch('/api/end_call', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ session_id: sessionId })
-                    });
+            if (data.user_text) {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'message user-message';
+                userDiv.textContent = '🎤 ' + data.user_text;
+                document.getElementById('transcript').appendChild(userDiv);
+            }
+
+            const transcript = document.getElementById('transcript');
+            transcript.scrollTop = transcript.scrollHeight;
+
+            if (data.audio_url) {
+                if (!isCallActive) { requestInFlight = false; return; }
+                if (statusEl) statusEl.innerHTML = '';
+                const agentDiv = document.createElement('div');
+                agentDiv.className = 'message agent-message';
+                agentDiv.textContent = '🤖 ' + (data.response || '...');
+                document.getElementById('transcript').appendChild(agentDiv);
+                transcript.scrollTop = transcript.scrollHeight;
+
+                currentAgentAudio = makeAudioElement(data.audio_url);
+                currentAgentAudio.onerror = () => {
+                    currentAgentAudio = null;
+                    requestInFlight = false;
+                    resumeVAD();
+                    setStatus('<strong>Listening</strong> — Speak anytime', true);
+                    if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your next question...</p>';
+                };
+                currentAgentAudio.onended = () => {
+                    if (!isCallActive) return;
+                    currentAgentAudio = null;
+                    requestInFlight = false;
+                    resumeVAD();
+                    setStatus('<strong>Listening</strong> — Speak anytime', true);
+                    const s = document.getElementById('transcriptStatus');
+                    if (s) s.innerHTML = '<p class="loading">Speak your next question...</p>';
+                };
+
+                try {
+                    await currentAgentAudio.play();
+                } catch (e) {
+                    // Autoplay blocked — show response text, resume listening
+                    console.warn('Audio play blocked:', e);
+                    currentAgentAudio = null;
+                    requestInFlight = false;
+                    resumeVAD();
+                    setStatus('<strong>Listening</strong> — Speak anytime', true);
+                    if (statusEl) statusEl.innerHTML = '<p class="loading">🔇 Audio blocked — see text above. Speak your next question.</p>';
                 }
+
+            } else if (data.response) {
+                if (statusEl) statusEl.innerHTML = '';
+                const agentDiv = document.createElement('div');
+                agentDiv.className = 'message agent-message';
+                agentDiv.textContent = '🤖 ' + data.response;
+                document.getElementById('transcript').appendChild(agentDiv);
+                transcript.scrollTop = transcript.scrollHeight;
+                if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your next question...</p>';
                 requestInFlight = false;
-                document.getElementById('endBtn').disabled = true;
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('statusDiv').innerHTML = '<span class="status-dot"></span><strong>Ended</strong>';
-                document.getElementById('statusDiv').classList.remove('recording');
-                document.getElementById('transcript').innerHTML += '<div class="message" style="background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.2); margin-top: 12px;">✓ Call ended. Click Start to begin again.</div>';
-            } catch (error) {
-                document.getElementById('transcript').innerHTML += `<div class="message" style="background: rgba(248,113,113,0.15);">⚠️ ${error.message}</div>`;
+                resumeVAD();
+                setStatus('<strong>Listening</strong> — Speak anytime', true);
+            } else {
+                if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your next question...</p>';
+                requestInFlight = false;
+                resumeVAD();
+                setStatus('<strong>Listening</strong> — Speak anytime', true);
             }
+        } catch (error) {
+            clearTimeout(timeoutId);
+            clearTimeout(longMsgId);
+            if (statusEl) statusEl.innerHTML = '';
+            const errDiv = document.createElement('div');
+            errDiv.className = 'message';
+            errDiv.style.background = 'rgba(248,113,113,0.15)';
+            errDiv.style.borderColor = 'rgba(248,113,113,0.3)';
+            errDiv.textContent = '⚠️ ' + (error.name === 'AbortError' ? 'Request timed out. Please try again.' : error.message);
+            document.getElementById('transcript').appendChild(errDiv);
+            if (statusEl) statusEl.innerHTML = '<p class="loading">Speak your question again...</p>';
+            requestInFlight = false;
+            resumeVAD();
+            setStatus('<strong>Listening</strong> — Speak anytime', true);
+        }
+    }
+
+    function resumeVAD() {
+        if (vadInstance && isCallActive) {
+            try { vadInstance.start(); } catch(_){}
+        }
+    }
+
+    // ─── End Call ─────────────────────────────────────────────────────────────
+    async function endCall() {
+        try {
+            isCallActive = false;
+            if (currentAgentAudio) { currentAgentAudio.pause(); currentAgentAudio = null; }
+            if (isManualRecording && manualMediaRecorder) {
+                try { manualMediaRecorder.stop(); } catch(_){}
+                isManualRecording = false;
+            }
+            if (vadInstance) { try { vadInstance.pause(); vadInstance.destroy(); } catch(_){} vadInstance = null; }
+            if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+            if (audioContext) { try { audioContext.close(); } catch(_){} audioContext = null; }
+
+            if (sessionId) {
+                await fetch('/api/end_call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+            }
+
+            requestInFlight = false;
+            document.getElementById('endBtn').disabled = true;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('recordBtn').style.display = 'none';
+            document.getElementById('modeBadge').textContent = '';
+            useManualMode = false;
+            setStatus('<strong>Ended</strong> — Click Start to begin again');
+            document.getElementById('transcript').innerHTML +=
+                '<div class="message" style="background:rgba(52,211,153,0.1);border-color:rgba(52,211,153,0.2);margin-top:12px;">✓ Call ended. Click Start to begin again.</div>';
+        } catch (e) {
+            document.getElementById('transcript').innerHTML += `<div class="message" style="background:rgba(248,113,113,0.15);">⚠️ ${e.message}</div>`;
+        }
+    }
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+    window.addEventListener('load', () => {
+        document.getElementById('startBtn').focus();
+
+        // Show device hint
+        if (isIOS) {
+            document.getElementById('modeBadge').textContent = '📱 iPhone detected — tap Start, then hold button to speak';
+        } else if (isAndroid) {
+            document.getElementById('modeBadge').textContent = '📱 Android detected';
         }
 
-        window.addEventListener('load', () => document.getElementById('startBtn').focus());
+        // Unlock AudioContext on any user touch (iOS requirement)
+        const firstTouch = () => {
+            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') audioContext.resume();
+            document.removeEventListener('touchstart', firstTouch);
+            document.removeEventListener('click', firstTouch);
+        };
+        document.addEventListener('touchstart', firstTouch, { once: true, passive: true });
+        document.addEventListener('click', firstTouch, { once: true });
+    });
     </script>
 </body>
 </html>
