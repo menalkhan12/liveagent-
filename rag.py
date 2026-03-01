@@ -292,6 +292,9 @@ CONTEXT:
                 if "429" in err_str or "rate" in err_str or "quota" in err_str:
                     logger.warning(f"Key {key_idx+1} rate limited, trying next key...")
                     break
+                if "401" in err_str or "invalid" in err_str or "unauthorized" in err_str:
+                    logger.warning(f"Key {key_idx+1} invalid, trying next key...")
+                    break
                 logger.error(f"Model {model} failed: {e}, trying next model...")
                 continue
 
