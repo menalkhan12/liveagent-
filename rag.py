@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import time
 from pathlib import Path
 
 # Read .env file directly
@@ -508,37 +509,42 @@ CONTEXT:
     for key_idx in range(num_keys()):
         client = get_client(key_idx)
         for model in MODELS:
-            try:
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message}
-                    ],
-                    temperature=0.1,
-                    max_tokens=200
-                )
-                reply = response.choices[0].message.content
-                if not reply or not reply.strip():
-                    logger.warning(f"Empty reply from {model}, trying next model...")
-                    continue
-                reply = reply.strip()
-                logger.info(f"LLM reply from {model}: {reply}")
-                escalated = any(p in reply.lower() for p in [
-                    "technical issue", "cannot find", "unable",
-                    "phone number", "provide your phone", "contact you"
-                ])
-                return reply, escalated
-            except Exception as e:
-                err_str = str(e).lower()
-                if "429" in err_str or "rate" in err_str or "quota" in err_str:
-                    logger.warning(f"Key {key_idx+1} rate limited, trying next key...")
+            for attempt in range(2):  # initial try + 1 retry on 429 (when 1 key)
+                try:
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_message}
+                        ],
+                        temperature=0.1,
+                        max_tokens=200
+                    )
+                    reply = response.choices[0].message.content
+                    if not reply or not reply.strip():
+                        logger.warning(f"Empty reply from {model}, trying next model...")
+                        break
+                    reply = reply.strip()
+                    logger.info(f"LLM reply from {model}: {reply}")
+                    escalated = any(p in reply.lower() for p in [
+                        "technical issue", "cannot find", "unable",
+                        "phone number", "provide your phone", "contact you"
+                    ])
+                    return reply, escalated
+                except Exception as e:
+                    err_str = str(e).lower()
+                    if "429" in err_str or "rate" in err_str or "quota" in err_str:
+                        if num_keys() == 1 and attempt == 0:
+                            logger.warning("Rate limited (1 key). Waiting 25s before retry...")
+                            time.sleep(25)
+                            continue
+                        logger.warning(f"Key {key_idx+1} rate limited, trying next key...")
+                        break
+                    if "401" in err_str or "invalid" in err_str or "unauthorized" in err_str:
+                        logger.warning(f"Key {key_idx+1} invalid, trying next key...")
+                        break
+                    logger.error(f"Model {model} failed: {e}, trying next model...")
                     break
-                if "401" in err_str or "invalid" in err_str or "unauthorized" in err_str:
-                    logger.warning(f"Key {key_idx+1} invalid, trying next key...")
-                    break
-                logger.error(f"Model {model} failed: {e}, trying next model...")
-                continue
 
     # All models failed
     logger.error("All models failed")

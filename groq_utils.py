@@ -21,8 +21,9 @@ def get_client(key_index=0):
     if not GROQ_KEYS:
         raise ValueError("No GROQ API keys. Set GROQ_API_KEY or GROQ_API_KEYS in env.")
     idx = key_index % len(GROQ_KEYS)
-    # max_retries=0: fail fast on 429 so we immediately try next key instead of waiting 24+ sec
-    return Groq(api_key=GROQ_KEYS[idx], timeout=30.0, max_retries=0)
+    # 1 key: allow retries (only option is to wait on 429). 2+ keys: fail fast, try next key.
+    max_retries = 2 if len(GROQ_KEYS) == 1 else 0
+    return Groq(api_key=GROQ_KEYS[idx], timeout=30.0, max_retries=max_retries)
 
 def num_keys():
     return len(GROQ_KEYS)
