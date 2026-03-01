@@ -134,8 +134,10 @@ def initialize_rag():
 MAX_CONTEXT_CHARS = 12000  # Increased slightly
 
 
-# ─── Keyword → file mapping ───────────────────────────────────────────────────
-# If ANY keyword matches the query, the listed files are ALWAYS injected first.
+# Baseline files when NO keyword matches — ensures we always have useful context
+BASELINE_FILES = ["RAG_QUICK_REF.txt", "IST_DEPARTMENTS_AND_PROGRAMS_SUMMARY.txt", "ADMISSION_INFO.txt"]
+
+# Keyword → file mapping. If ANY keyword matches, the listed files are ALWAYS injected first.
 KEYWORD_FILE_MAP = [
     # Closing merit / last merit / aggregate history
     (
@@ -159,9 +161,10 @@ KEYWORD_FILE_MAP = [
          "offered by", "offered under", "department offer", "department programs",
          "what programs", "which programs", "courses under", "under mechanical",
          "under electrical", "under avionics", "under aerospace", "under computing",
-         "under materials", "under space"],
+         "under materials", "under space", "applied mathematics", "applied math",
+         "all programs", "physics space science", "is physics part of space"],
         ["IST_DEPARTMENTS_AND_PROGRAMS_SUMMARY.txt", "RAG_QUICK_REF.txt",
-         "ELECTRICAL_DEPARTMENT_PROGRAMS.txt"]
+         "ELECTRICAL_DEPARTMENT_PROGRAMS.txt", "05_DEPARTMENTS.txt"]
     ),
     # Admission dates / open / closed / last date
     (
@@ -223,6 +226,41 @@ KEYWORD_FILE_MAP = [
         ["space science merit", "space science closing", "merit space science",
          "bs space science merit"],
         ["CLOSING_MERIT_HISTORY.txt", "RAG_QUICK_REF.txt"]
+    ),
+    # About IST / overview / what is IST
+    (
+        ["what is IST", "about IST", "overview", "introduce", "tell me about",
+         "institute of space", "when was IST", "established", "founded"],
+        ["03_ABOUT.txt", "IST_FULL_WEBSITE_MANUAL.txt"]
+    ),
+    # Contact / phone / WhatsApp / email
+    (
+        ["contact", "phone number", "phone", "whatsapp", "email", "call",
+         "how to reach", "admissions office", "admissions contact"],
+        ["ADMISSION_INFO.txt", "PROGRAMS_ELIGIBILITY_WHATSAPP_SEATS.txt"]
+    ),
+    # Programs list / what does IST offer
+    (
+        ["list of programs", "list programs", "what programs", "all programs",
+         "programs offered", "does IST offer", "courses offered", "degree programs"],
+        ["IST_DEPARTMENTS_AND_PROGRAMS_SUMMARY.txt", "RAG_QUICK_REF.txt", "PROGRAMS_ELIGIBILITY_WHATSAPP_SEATS.txt"]
+    ),
+    # Facilities / campus / cafeteria / counseling
+    (
+        ["facilities", "campus", "cafeteria", "counseling", "wellness",
+         "tuck shop", "laundry", "medical", "fire safety", "student societies"],
+        ["06_FACILITIES.txt", "TRANSPORT_HOSTEL_FAQS.txt"]
+    ),
+    # Research
+    (
+        ["research", "labs", "laboratory", "publications"],
+        ["11_RESEARCH.txt"]
+    ),
+    # Focus areas / seats / specific program details
+    (
+        ["focus area", "focus areas", "seats", "how many seats", "remote sensing",
+         "gis", "nanotechnology", "chemistry", "metallurgy"],
+        ["PROGRAMS_ELIGIBILITY_WHATSAPP_SEATS.txt"]
     ),
 ]
 # ──────────────────────────────────────────────────────────────────────────────
@@ -304,12 +342,21 @@ def _expand_query_for_retrieval(query):
         extra.append("eligibility WhatsApp seats focus areas DAE")
     if any(w in q for w in ["foreign", "international", "overseas"]):
         extra.append("foreign admission international USD fee eligibility NOC HEC")
+    if any(w in q for w in ["about", "what is", "overview", "tell me"]):
+        extra.append("IST Institute of Space Technology programs departments")
+    if any(w in q for w in ["contact", "phone", "whatsapp", "email"]):
+        extra.append("admissions 051 9075100 03148909890 03362154097")
+    if any(w in q for w in ["facilities", "campus", "hostel", "cafeteria"]):
+        extra.append("hostel cafeteria tuck shop wellness counseling")
+    # Generic boost when no specific expansion matched
+    if not extra:
+        extra.append("IST programs admission fee merit department")
     if extra:
         return query + " " + " ".join(extra)
     return query
 
 
-def retrieve_context(query, top_k=12):
+def retrieve_context(query, top_k=15):
     global vectorizer, doc_vectors
 
     if vectorizer is None or doc_vectors is None:
@@ -318,12 +365,13 @@ def retrieve_context(query, top_k=12):
     try:
         q_lower = query.lower()
 
-        # Step 1: Always inject forced files based on keyword matching
+        # Step 1: Inject files — keyword match OR baseline (never empty)
         forced_files = _get_forced_files_for_query(q_lower)
-        forced_context = ""
-        if forced_files:
-            forced_context = _get_chunks_from_files(forced_files)
-            logger.info(f"Forced files injected: {forced_files}")
+        if not forced_files:
+            forced_files = BASELINE_FILES
+            logger.info(f"No keyword match, using baseline: {forced_files}")
+        forced_context = _get_chunks_from_files(forced_files)
+        logger.info(f"Forced files injected: {forced_files}")
 
         # Step 2: TF-IDF retrieval for additional context
         expanded = _expand_query_for_retrieval(query)
@@ -419,6 +467,7 @@ Current query (resolve "it"/"its"/"their"/"them"/"that" from above): {query}"""
     system_prompt = f"""You are the official voice assistant for Institute of Space Technology (IST). You answer callers by phone.
 
 STRICT RULES:
+0. USE CONTEXT AGGRESSIVELY: Before saying "I don't have that information", scan the ENTIRE CONTEXT. If ANY fact, sentence, or number relates to the question, USE IT to answer. Only escalate when CONTEXT has ZERO relevant information. Many questions are answerable from the CONTEXT — extract and respond.
 1. Answer ONLY from the CONTEXT below. NEVER invent or add information not in CONTEXT.
 2. DIPLOMA RULE (CRITICAL): IST does NOT offer any diploma programs. IST ONLY accepts DAE (Diploma of Associate Engineering) holders as applicants. When asked "what diplomas does IST offer", say: "IST does not offer diploma programs. IST is a university offering BS, MS, and PhD degrees. However, DAE holders can apply for BS programs at IST." Never list DAE specializations as IST's diploma offerings.
 3. Electrical Engineering programs: ONLY "BS Electrical Engineering and BS Computer Engineering". Never mention others.
@@ -430,9 +479,12 @@ STRICT RULES:
 9. Use amounts in lakh and thousand (e.g., 1 lakh 48 thousand rupees).
 10. AGGREGATE FORMULA (Engineering): (Matric/1100 × 10) + (FSC/1100 × 40) + (EntryTest/100 × 50).
 11. AGGREGATE FORMULA (Non-Engineering): (Matric/1100 × 50) + (FSC/1100 × 50). No entry test.
-12. If CONTEXT truly does not contain the answer, say: "I don't have that information. Please provide your phone number and we will contact you."
-13. CONTINUATION: Resolve "it"/"its"/"their"/"them"/"that" from the previous turn context.
-14. Be professional and friendly.
+12. SPACE SCIENCE DEPARTMENT: Offers BS Space Science AND BS Physics. When asked "Is BS Physics part of Space Science?" or "Does Space Science have Physics?", answer: "Yes, BS Physics is part of the Department of Space Science."
+13. APPLIED MATHEMATICS DEPARTMENT: Offers BS Mathematics only. When asked "what programs under Applied Mathematics" or "all programs under Applied Mathematics", say: "The Department of Applied Mathematics and Statistics offers BS Mathematics."
+14. FALSE STATEMENTS: When the user makes a statement that sounds wrong (e.g. "all programs are offered under Applied Mathematics"), correct them politely using CONTEXT: "No, that's not correct. The Department of Applied Mathematics and Statistics offers BS Mathematics. Other departments offer their own programs."
+15. ESCALATION: Only say "I don't have that information. Please provide your phone number and we will contact you." when you have scanned ALL of CONTEXT and found NOTHING that answers the question. Re-read rule 0.
+16. CONTINUATION: Resolve "it"/"its"/"their"/"them"/"that" from the previous turn context.
+17. Be professional and friendly.
 
 CONTEXT:
 {context}"""
