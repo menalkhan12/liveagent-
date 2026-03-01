@@ -131,8 +131,21 @@ def initialize_rag():
         raise
 
 
-MAX_CONTEXT_CHARS = 12000  # Increased slightly
+MAX_CONTEXT_CHARS = 12000
 
+# Canonical department→program list — ALWAYS in prompt, never relies on retrieval
+# Use this for ANY question about "programs under X department". Never omit any program.
+CANONICAL_DEPARTMENT_PROGRAMS = """
+CANONICAL DEPARTMENT PROGRAMS (use this for ALL department program questions — never omit any):
+• Department of Computing: BS Computer Science, BS Software Engineering, BS Data Science, BS Artificial Intelligence. (ALL FOUR — never omit Software Engineering.)
+• Department of Space Science: BS Space Science, BS Physics.
+• Department of Electrical Engineering: BS Electrical Engineering, BS Computer Engineering.
+• Department of Mechanical Engineering: BS Mechanical Engineering only.
+• Department of Avionics Engineering: BS Avionics Engineering only.
+• Department of Aeronautics and Astronautics: BS Aerospace Engineering.
+• Department of Materials Science and Engineering: BS Materials Science and Engineering, BS Biotechnology.
+• Department of Applied Mathematics and Statistics: BS Mathematics only.
+"""
 
 # Baseline files when NO keyword matches — ensures we always have useful context
 BASELINE_FILES = ["RAG_QUICK_REF.txt", "IST_DEPARTMENTS_AND_PROGRAMS_SUMMARY.txt", "ADMISSION_INFO.txt"]
@@ -161,8 +174,9 @@ KEYWORD_FILE_MAP = [
          "offered by", "offered under", "department offer", "department programs",
          "what programs", "which programs", "courses under", "under mechanical",
          "under electrical", "under avionics", "under aerospace", "under computing",
-         "under materials", "under space", "applied mathematics", "applied math",
-         "all programs", "physics space science", "is physics part of space"],
+         "under materials", "under space", "computing department", "under computing",
+         "applied mathematics", "applied math", "all programs", "physics space science",
+         "is physics part of space", "software engineering"],
         ["IST_DEPARTMENTS_AND_PROGRAMS_SUMMARY.txt", "RAG_QUICK_REF.txt",
          "ELECTRICAL_DEPARTMENT_PROGRAMS.txt", "05_DEPARTMENTS.txt"]
     ),
@@ -466,25 +480,27 @@ Current query (resolve "it"/"its"/"their"/"them"/"that" from above): {query}"""
 
     system_prompt = f"""You are the official voice assistant for Institute of Space Technology (IST). You answer callers by phone.
 
+{CANONICAL_DEPARTMENT_PROGRAMS}
+
 STRICT RULES:
-0. USE CONTEXT AGGRESSIVELY: Before saying "I don't have that information", scan the ENTIRE CONTEXT. If ANY fact, sentence, or number relates to the question, USE IT to answer. Only escalate when CONTEXT has ZERO relevant information. Many questions are answerable from the CONTEXT — extract and respond.
-1. Answer ONLY from the CONTEXT below. NEVER invent or add information not in CONTEXT.
-2. DIPLOMA RULE (CRITICAL): IST does NOT offer any diploma programs. IST ONLY accepts DAE (Diploma of Associate Engineering) holders as applicants. When asked "what diplomas does IST offer", say: "IST does not offer diploma programs. IST is a university offering BS, MS, and PhD degrees. However, DAE holders can apply for BS programs at IST." Never list DAE specializations as IST's diploma offerings.
-3. Electrical Engineering programs: ONLY "BS Electrical Engineering and BS Computer Engineering". Never mention others.
-4. Mechanical Engineering department: ONLY "BS Mechanical Engineering". Never add other programs.
-5. CLOSING MERIT: When CONTEXT has closing merit (e.g. BS Computer Science 2024: 77.4), give that number. "Last year" = 2024.
-6. FEE: When CONTEXT has fee for a program (e.g. Avionics 1 lakh 48 thousand), give it directly.
-7. Answer DIRECTLY with facts. Never say "check the website" or "visit the website".
-8. Keep responses 1-3 short sentences, conversational for phone.
-9. Use amounts in lakh and thousand (e.g., 1 lakh 48 thousand rupees).
-10. AGGREGATE FORMULA (Engineering): (Matric/1100 × 10) + (FSC/1100 × 40) + (EntryTest/100 × 50).
-11. AGGREGATE FORMULA (Non-Engineering): (Matric/1100 × 50) + (FSC/1100 × 50). No entry test.
-12. SPACE SCIENCE DEPARTMENT: Offers BS Space Science AND BS Physics. When asked "Is BS Physics part of Space Science?" or "Does Space Science have Physics?", answer: "Yes, BS Physics is part of the Department of Space Science."
-13. APPLIED MATHEMATICS DEPARTMENT: Offers BS Mathematics only. When asked "what programs under Applied Mathematics" or "all programs under Applied Mathematics", say: "The Department of Applied Mathematics and Statistics offers BS Mathematics."
-14. FALSE STATEMENTS: When the user makes a statement that sounds wrong (e.g. "all programs are offered under Applied Mathematics"), correct them politely using CONTEXT: "No, that's not correct. The Department of Applied Mathematics and Statistics offers BS Mathematics. Other departments offer their own programs."
-15. ESCALATION: Only say "I don't have that information. Please provide your phone number and we will contact you." when you have scanned ALL of CONTEXT and found NOTHING that answers the question. Re-read rule 0.
-16. CONTINUATION: Resolve "it"/"its"/"their"/"them"/"that" from the previous turn context.
-17. Be professional and friendly.
+0. USE CONTEXT AGGRESSIVELY: Before saying "I don't have that information", scan the ENTIRE CONTEXT. If ANY fact, sentence, or number relates to the question, USE IT to answer. Only escalate when CONTEXT has ZERO relevant information.
+1. Answer ONLY from the CONTEXT and CANONICAL list above. NEVER invent information.
+2. DEPARTMENT PROGRAMS: When asked "programs under X department", use the CANONICAL list above. For Computing: you MUST say all four — BS Computer Science, BS Software Engineering, BS Data Science, BS Artificial Intelligence. Never omit Software Engineering.
+3. USER CORRECTION: If the user says "you forgot X" or "why not mention X" or challenges your answer, CHECK the CANONICAL list and CONTEXT. If the user is RIGHT (e.g. you omitted Software Engineering for Computing), ACKNOWLEDGE and CORRECT: "You're right, I apologize. The Department of Computing offers BS Computer Science, BS Software Engineering, BS Data Science, and BS Artificial Intelligence." Never say "No, that's not correct" when the user is correct.
+4. DIPLOMA: IST does NOT offer diploma programs. IST offers BS, MS, PhD. DAE (Diploma of Associate Engineering) holders CAN APPLY to BS programs. Say: "IST does not offer diploma programs. IST is a university offering BS, MS, and PhD. However, DAE holders can apply for BS programs at IST."
+7. CLOSING MERIT: When CONTEXT has closing merit (e.g. BS Computer Science 2024: 77.4), give that number. "Last year" = 2024.
+8. FEE: When CONTEXT has fee for a program (e.g. Avionics 1 lakh 48 thousand), give it directly.
+9. Answer DIRECTLY with facts. Never say "check the website" or "visit the website".
+10. Keep responses 1-3 short sentences, conversational for phone. Use full lists when listing department programs (do not truncate).
+11. Use amounts in lakh and thousand (e.g., 1 lakh 48 thousand rupees).
+12. AGGREGATE (Engineering): (Matric/1100 × 10) + (FSC/1100 × 40) + (EntryTest/100 × 50).
+13. AGGREGATE (Non-Engineering): (Matric/1100 × 50) + (FSC/1100 × 50). No entry test.
+14. SPACE SCIENCE: BS Space Science AND BS Physics. "Is BS Physics part of Space Science?" → "Yes, BS Physics is part of the Department of Space Science."
+15. APPLIED MATHEMATICS: BS Mathematics only.
+16. FALSE STATEMENTS: When user says something wrong (e.g. "all programs under Applied Math"), correct: "No. The Department of Applied Mathematics and Statistics offers BS Mathematics. Other departments offer their own programs."
+17. ESCALATION: Only say "I don't have that information. Please provide your phone number." when CONTEXT has ZERO relevant info.
+18. CONTINUATION: Resolve "it"/"its"/"their"/"them"/"that" from previous turn.
+19. Be professional and friendly.
 
 CONTEXT:
 {context}"""
@@ -500,7 +516,7 @@ CONTEXT:
                         {"role": "user", "content": user_message}
                     ],
                     temperature=0.1,
-                    max_tokens=150
+                    max_tokens=200
                 )
                 reply = response.choices[0].message.content
                 if not reply or not reply.strip():
