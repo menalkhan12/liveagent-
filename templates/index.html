@@ -1,608 +1,987 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="format-detection" content="telephone=no">
-    <meta name="theme-color" content="#0f172a">
-    <title>IST Voice Assistant | Institute of Space Technology</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
-            --bg-dark: #0f172a; --bg-card: #1e293b; --bg-elevated: #334155;
-            --accent: #38bdf8; --success: #34d399; --danger: #f87171;
-            --text: #f1f5f9; --text-muted: #94a3b8; --border: rgba(255,255,255,0.08);
-        }
-        body {
-            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-            background: var(--bg-dark);
-            background-image:
-                radial-gradient(ellipse 80% 50% at 50% 0%, rgba(56,189,248,0.15), transparent),
-                radial-gradient(ellipse 60% 40% at 100% 100%, rgba(34,211,238,0.08), transparent);
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
-                     max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
-            color: var(--text);
-        }
-        .container {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 24px; padding: 40px; max-width: 560px; width: 100%;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-        }
-        @media (max-width: 480px) { .container { padding: 24px 20px; } h1 { font-size: 20px !important; } }
-        .header { text-align: center; margin-bottom: 28px; }
-        .logo {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 64px; height: 64px;
-            background: linear-gradient(135deg, var(--accent), #0ea5e9);
-            border-radius: 16px; font-size: 28px; margin-bottom: 16px;
-            box-shadow: 0 8px 24px rgba(56,189,248,0.3);
-        }
-        h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.02em; }
-        .subtitle { font-size: 14px; color: var(--text-muted); font-weight: 500; }
-        .status {
-            padding: 14px 18px; background: var(--bg-elevated);
-            border-radius: 14px; border: 1px solid var(--border);
-            color: var(--success); font-size: 14px; font-weight: 500;
-            margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
-            transition: color 0.2s, border-color 0.2s;
-        }
-        .status.active   { color: var(--accent);  border-color: rgba(56,189,248,0.3); }
-        .status.speaking { color: #a78bfa;         border-color: rgba(167,139,250,0.3); }
-        .status.heard    { color: #fbbf24;         border-color: rgba(251,191,36,0.3); }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-        .status.active   .status-dot { animation: pulse 1.2s ease-in-out infinite; }
-        .status.speaking .status-dot { animation: pulse 0.7s ease-in-out infinite; }
-        .status.heard    .status-dot { animation: pulse 0.4s ease-in-out infinite; }
-        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(1.35)} }
-        .button-group { display: flex; gap: 12px; margin-bottom: 14px; }
-        button {
-            flex: 1; padding: 16px 20px; min-height: 52px;
-            font-size: 15px; font-weight: 600; font-family: inherit;
-            border: none; border-radius: 14px; cursor: pointer;
-            transition: all 0.15s ease; -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation; user-select: none; -webkit-user-select: none;
-        }
-        #startBtn { background: linear-gradient(135deg, var(--success), #10b981); color: #fff; box-shadow: 0 4px 14px rgba(52,211,153,0.35); }
-        #startBtn:active:not(:disabled) { transform: scale(0.97); }
-        #startBtn:disabled { background: var(--bg-elevated); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
-        #endBtn { background: linear-gradient(135deg, var(--danger), #ef4444); color: #fff; box-shadow: 0 4px 14px rgba(248,113,113,0.25); }
-        #endBtn:active:not(:disabled) { transform: scale(0.97); }
-        #endBtn:disabled { background: var(--bg-elevated); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
-        #recordBtn {
-            display: none; width: 100%; padding: 20px; min-height: 60px;
-            font-size: 17px; font-weight: 700; font-family: inherit;
-            border: none; border-radius: 14px; cursor: pointer;
-            -webkit-tap-highlight-color: transparent; touch-action: none;
-            margin-bottom: 14px;
-            background: linear-gradient(135deg, var(--accent), #0ea5e9);
-            color: #fff; box-shadow: 0 4px 14px rgba(56,189,248,0.4);
-            transition: all 0.12s ease;
-        }
-        #recordBtn.active { background: linear-gradient(135deg,var(--danger),#ef4444); box-shadow: 0 6px 24px rgba(248,113,113,0.55); transform: scale(1.03); }
-        .transcript {
-            background: var(--bg-dark); border: 1px solid var(--border);
-            border-radius: 16px; padding: 18px;
-            min-height: 200px; max-height: 340px;
-            overflow-y: auto; -webkit-overflow-scrolling: touch;
-        }
-        .message { margin: 10px 0; padding: 12px 14px; border-radius: 12px; font-size: 14px; line-height: 1.6; }
-        .user-msg  { background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.2); margin-left: 20px; }
-        .agent-msg { background: rgba(52,211,153,0.10); border: 1px solid rgba(52,211,153,0.15); margin-right: 20px; }
-        .loading { color: var(--text-muted); font-size: 13px; font-style: italic; }
-        .spinner {
-            display: inline-block; width: 13px; height: 13px;
-            border: 2px solid var(--bg-elevated); border-top-color: var(--accent);
-            border-radius: 50%; animation: spin 0.7s linear infinite;
-            margin-right: 7px; vertical-align: middle;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .mode-hint { text-align: center; font-size: 12px; color: var(--text-muted); margin-bottom: 10px; min-height: 16px; }
-        .info { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 18px; font-size: 12px; color: var(--text-muted); }
-        .info span { display: flex; align-items: center; gap: 5px; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <div class="header">
-        <div class="logo">🎙️</div>
-        <h1>Institute of Space Technology</h1>
-        <p class="subtitle">Voice Assistant — Ask anything about admissions</p>
-    </div>
-    <div class="status" id="statusDiv">
-        <span class="status-dot"></span>
-        <span id="statusText"><strong>Ready</strong> — Click Start to begin</span>
-    </div>
-    <div class="button-group">
-        <button id="startBtn" onclick="startCall()">▶ Start Call</button>
-        <button id="endBtn" onclick="endCall()" disabled>■ End Call</button>
-    </div>
-    <button id="recordBtn">🎤 Hold to Speak</button>
-    <div class="mode-hint" id="modeHint"></div>
-    <div class="transcript" id="transcript">
-        <p class="loading">Click "Start Call" to speak with the IST voice assistant.</p>
-        <div id="transcriptStatus"></div>
-    </div>
-    <div class="info">
-        <span>🧠 IST Knowledge Base</span>
-        <span>🎯 Smart VAD</span>
-        <span>🔊 Natural Voice</span>
-    </div>
-</div>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050c1a" />
+  <title>IST Voice Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
 
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/bundle.min.js"></script>
-<script>
-// ═══════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════
-let sessionId        = null;
-let isCallActive     = false;
-let stream           = null;
-let vadInstance      = null;
-let currentAudio     = null;
-let requestInFlight  = false;
-let agentSpeaking    = false;   // true ONLY while TTS audio is playing
-let vadReady         = false;   // VAD initialized ok
-let useManualMode    = false;
-let mediaRecorder    = null;
-let recChunks        = [];
-let isRecording      = false;
-let audioCtx         = null;
-let vadCooldownTimer = null;    // prevents speaker-bleed false trigger after TTS ends
-
-const isIOS     = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-const isAndroid = /Android/.test(navigator.userAgent);
-
-// ════════════════════════════════════════
-// WAV ENCODER  (VAD outputs Float32 16kHz)
-// ════════════════════════════════════════
-function encodeWAV(samples, sr) {
-    const ds = samples.length * 2;
-    const buf = new ArrayBuffer(44 + ds);
-    const v = new DataView(buf);
-    const ws = (o, s) => { for (let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
-    ws(0,'RIFF'); v.setUint32(4,36+ds,true); ws(8,'WAVE'); ws(12,'fmt ');
-    v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
-    v.setUint32(24,sr,true); v.setUint32(28,sr*2,true);
-    v.setUint16(32,2,true);  v.setUint16(34,16,true);
-    ws(36,'data'); v.setUint32(40,ds,true);
-    for (let i=0;i<samples.length;i++) {
-        const s = Math.max(-1,Math.min(1,samples[i]));
-        v.setInt16(44+i*2, s<0?s*0x8000:s*0x7FFF, true);
+  <style>
+    /* ── Variables ── */
+    :root {
+      --bg:        #050c1a;
+      --bg2:       #081428;
+      --surface:   rgba(10, 24, 50, 0.85);
+      --border:    rgba(56, 139, 253, 0.18);
+      --blue:      #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.35);
+      --cyan:      #22d3ee;
+      --gold:      #f59e0b;
+      --text:      #e2eaf7;
+      --muted:     #6b82a8;
+      --red:       #ef4444;
+      --green:     #22c55e;
+      --radius:    16px;
     }
-    return buf;
-}
 
-async function toWav(blob) {
-    try {
-        if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
-        if (audioCtx.state==='suspended') await audioCtx.resume();
-        const decoded = await audioCtx.decodeAudioData(await blob.arrayBuffer());
-        let ch = decoded.getChannelData(0);
-        if (decoded.sampleRate !== 16000) {
-            const ratio = decoded.sampleRate / 16000;
-            const out   = new Float32Array(Math.round(ch.length/ratio));
-            for (let i=0;i<out.length;i++) out[i] = ch[Math.round(i*ratio)];
-            ch = out;
-        }
-        return new Blob([encodeWAV(ch,16000)],{type:'audio/wav'});
-    } catch(e) { return blob; }
-}
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-function bestMime() {
-    for (const t of ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg','']) {
-        if (!t||(window.MediaRecorder&&MediaRecorder.isTypeSupported(t))) return t;
+    /* ── Starfield ── */
+    #stars-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Layout ── */
+    .shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px env(safe-area-inset-bottom, 16px);
+    }
+
+    /* ── Header ── */
+    header {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 0 8px;
+      margin-bottom: 8px;
+    }
+    .logo-ring {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      border: 2px solid var(--blue);
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+      box-shadow: 0 0 18px var(--blue-glow);
+    }
+    .logo-ring::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 1px solid rgba(59,130,246,0.15);
+      animation: spin 12s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .logo-icon {
+      font-size: 22px;
+      line-height: 1;
+    }
+    .header-text h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+    }
+    .header-text p {
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ── Status Badge ── */
+    .status-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-left: auto;
+      white-space: nowrap;
+      transition: all 0.3s;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: all 0.4s;
+    }
+    .status-dot.idle    { background: var(--muted); }
+    .status-dot.active  { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.8s infinite; }
+    .status-dot.recording { background: var(--red); box-shadow: 0 0 8px var(--red); animation: pulse 0.9s infinite; }
+    .status-dot.thinking { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); animation: pulse 1s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+
+    /* ── Main Card ── */
+    .card {
+      width: 100%;
+      max-width: 520px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      overflow: hidden;
+      margin-top: 8px;
+      box-shadow: 0 8px 48px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.04) inset;
+    }
+
+    /* ── Visualizer ── */
+    .viz-zone {
+      position: relative;
+      height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .viz-bg {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 120%, rgba(59,130,246,0.12) 0%, transparent 60%);
+    }
+    #viz-canvas {
+      position: relative;
+      z-index: 1;
+    }
+    .idle-glyph {
+      position: absolute;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.4s;
+    }
+    .idle-glyph .orbit {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(59,130,246,0.3);
+      position: relative;
+      animation: spin 8s linear infinite;
+    }
+    .idle-glyph .orbit::after {
+      content: '';
+      position: absolute;
+      top: -4px; left: 50%;
+      transform: translateX(-50%);
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 10px var(--blue);
+    }
+    .idle-glyph span {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* ── Transcript ── */
+    .transcript-zone {
+      padding: 18px 20px;
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .bubble {
+      max-width: 82%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.55;
+      opacity: 0;
+      transform: translateY(8px);
+      animation: bubbleIn 0.35s ease forwards;
+    }
+    @keyframes bubbleIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .bubble.user {
+      align-self: flex-end;
+      background: rgba(59,130,246,0.15);
+      border: 1px solid rgba(59,130,246,0.25);
+      color: #c7dcff;
+    }
+    .bubble.agent {
+      align-self: flex-start;
+      background: rgba(34,211,238,0.07);
+      border: 1px solid rgba(34,211,238,0.18);
+      color: #d0f4fc;
+    }
+    .bubble-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+      opacity: 0.5;
+    }
+    .placeholder-text {
+      color: var(--muted);
+      font-size: 13px;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.03em;
+      opacity: 0.6;
+      text-align: center;
+      width: 100%;
+      padding: 16px 0;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      padding: 18px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    /* Mic Button */
+    .mic-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mic-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid var(--blue);
+      opacity: 0;
+      animation: none;
+    }
+    .mic-ring.r1 { width: 88px; height: 88px; }
+    .mic-ring.r2 { width: 110px; height: 110px; }
+    .recording .mic-ring {
+      animation: ringPulse 1.4s ease-out infinite;
+    }
+    .recording .mic-ring.r2 { animation-delay: 0.4s; }
+    @keyframes ringPulse {
+      0%   { opacity: 0.7; transform: scale(0.85); }
+      100% { opacity: 0;   transform: scale(1.1); }
+    }
+
+    #mic-btn {
+      width: 68px; height: 68px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #1d4ed8, #2563eb);
+      box-shadow: 0 4px 24px rgba(37,99,235,0.5), 0 0 0 0 var(--blue);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+      position: relative;
+      z-index: 1;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    #mic-btn:active { transform: scale(0.93); }
+    #mic-btn.recording {
+      background: linear-gradient(135deg, #991b1b, #dc2626);
+      box-shadow: 0 4px 24px rgba(220,38,38,0.55);
+    }
+    #mic-btn.disabled {
+      background: linear-gradient(135deg, #1e293b, #334155);
+      box-shadow: none;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    .mic-icon { font-size: 26px; line-height: 1; pointer-events: none; }
+
+    /* Start / End buttons */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+      touch-action: manipulation;
+    }
+    .btn:hover { background: rgba(255,255,255,0.08); }
+    .btn:active { transform: scale(0.97); }
+    .btn.primary {
+      background: linear-gradient(135deg, rgba(59,130,246,0.25), rgba(37,99,235,0.15));
+      border-color: rgba(59,130,246,0.45);
+      color: #93c5fd;
+    }
+    .btn.primary:hover { background: linear-gradient(135deg, rgba(59,130,246,0.35), rgba(37,99,235,0.25)); }
+    .btn.danger {
+      background: linear-gradient(135deg, rgba(239,68,68,0.18), rgba(185,28,28,0.1));
+      border-color: rgba(239,68,68,0.35);
+      color: #fca5a5;
+    }
+    .btn.danger:hover { background: linear-gradient(135deg, rgba(239,68,68,0.28), rgba(185,28,28,0.2)); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+    /* ── Info strip ── */
+    .info-strip {
+      width: 100%;
+      max-width: 520px;
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .info-chip {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 6px;
+      padding: 5px 10px;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: calc(env(safe-area-inset-bottom, 16px) + 16px);
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1e293b;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+      padding: 10px 20px;
+      border-radius: 99px;
+      z-index: 100;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
+      opacity: 0;
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: 90vw;
+      text-align: center;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* ── Loading spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    /* ── Scrollable transcript ── */
+    .transcript-scroll {
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .transcript-scroll::-webkit-scrollbar { width: 4px; }
+    .transcript-scroll::-webkit-scrollbar-track { background: transparent; }
+    .transcript-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 380px) {
+      header { gap: 10px; }
+      .header-text h1 { font-size: 15px; }
+      .viz-zone { height: 130px; }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="stars-canvas"></canvas>
+
+  <div class="shell">
+    <!-- Header -->
+    <header>
+      <div class="logo-ring">
+        <span class="logo-icon">🛰</span>
+      </div>
+      <div class="header-text">
+        <h1>IST Voice Assistant</h1>
+        <p>Institute of Space Technology</p>
+      </div>
+      <div class="status-badge" id="status-badge">
+        <span class="status-dot idle" id="status-dot"></span>
+        <span id="status-text">Offline</span>
+      </div>
+    </header>
+
+    <!-- Main card -->
+    <div class="card">
+      <!-- Visualizer -->
+      <div class="viz-zone">
+        <div class="viz-bg"></div>
+        <canvas id="viz-canvas" width="480" height="140"></canvas>
+        <div class="idle-glyph" id="idle-glyph">
+          <div class="orbit"></div>
+          <span id="idle-label">Tap to start</span>
+        </div>
+      </div>
+
+      <!-- Transcript -->
+      <div class="transcript-zone">
+        <div class="transcript-scroll" id="transcript">
+          <p class="placeholder-text" id="transcript-placeholder">Your conversation will appear here</p>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <!-- Mic button -->
+        <div class="mic-wrap" id="mic-wrap">
+          <div class="mic-ring r1"></div>
+          <div class="mic-ring r2"></div>
+          <button id="mic-btn" class="disabled" disabled title="Hold to speak">
+            <span class="mic-icon" id="mic-icon">🎙</span>
+          </button>
+        </div>
+
+        <!-- Start / End -->
+        <div class="btn-row">
+          <button class="btn primary" id="start-btn" onclick="startCall()">Start Call</button>
+          <button class="btn danger"   id="end-btn"   onclick="endCall()" disabled>End Call</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info chips -->
+    <div class="info-strip">
+      <div class="info-chip" id="chip-platform">Detecting platform…</div>
+      <div class="info-chip" id="chip-codec">Codec: —</div>
+      <div class="info-chip">IST Admissions AI</div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <script>
+  /* ═══════════════════════════════════════════════
+     STARFIELD
+  ═══════════════════════════════════════════════ */
+  (function() {
+    const c = document.getElementById('stars-canvas');
+    const ctx = c.getContext('2d');
+    let W, H, stars = [];
+    function resize() {
+      W = c.width  = window.innerWidth;
+      H = c.height = window.innerHeight;
+      stars = Array.from({length: 120}, () => ({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.2 + 0.2,
+        a: Math.random(),
+        s: Math.random() * 0.003 + 0.001
+      }));
+    }
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      stars.forEach(s => {
+        s.a += s.s;
+        if (s.a > 1) { s.a = 0; s.x = Math.random() * W; s.y = Math.random() * H; }
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(180,210,255,${s.a * 0.6})`;
+        ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    }
+    resize();
+    draw();
+    window.addEventListener('resize', resize);
+  })();
+
+  /* ═══════════════════════════════════════════════
+     VISUALIZER
+  ═══════════════════════════════════════════════ */
+  const vizCanvas = document.getElementById('viz-canvas');
+  const vizCtx    = vizCanvas.getContext('2d');
+  let analyser, dataArray, vizAnimId;
+  let vizMode = 'idle'; // idle | recording | thinking | speaking
+
+  function resizeViz() {
+    const zone = vizCanvas.parentElement;
+    vizCanvas.width  = zone.offsetWidth;
+    vizCanvas.height = zone.offsetHeight;
+  }
+  resizeViz();
+  window.addEventListener('resize', resizeViz);
+
+  function drawIdleViz() {
+    if (vizMode !== 'idle') return;
+    const W = vizCanvas.width, H = vizCanvas.height;
+    vizCtx.clearRect(0, 0, W, H);
+    requestAnimationFrame(drawIdleViz);
+  }
+
+  function startVizRecording(stream) {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source   = audioCtx.createMediaStreamSource(stream);
+    analyser       = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    source.connect(analyser);
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    vizMode = 'recording';
+    drawBars();
+  }
+
+  function drawBars() {
+    if (vizMode !== 'recording') return;
+    analyser.getByteFrequencyData(dataArray);
+    const W = vizCanvas.width, H = vizCanvas.height;
+    vizCtx.clearRect(0, 0, W, H);
+    const bars = 28;
+    const barW = Math.floor(W / (bars + bars * 0.4));
+    const gap  = Math.floor(barW * 0.4);
+    const total = bars * barW + (bars - 1) * gap;
+    let x = (W - total) / 2;
+    for (let i = 0; i < bars; i++) {
+      const val = (dataArray[Math.floor(i * dataArray.length / bars)] || 0) / 255;
+      const h   = Math.max(4, val * H * 0.78);
+      const grad = vizCtx.createLinearGradient(0, H/2 - h/2, 0, H/2 + h/2);
+      grad.addColorStop(0,   'rgba(34,211,238,0.9)');
+      grad.addColorStop(0.5, 'rgba(59,130,246,0.85)');
+      grad.addColorStop(1,   'rgba(34,211,238,0.9)');
+      vizCtx.fillStyle = grad;
+      vizCtx.beginPath();
+      vizCtx.roundRect(x, H/2 - h/2, barW, h, barW/2);
+      vizCtx.fill();
+      x += barW + gap;
+    }
+    vizAnimId = requestAnimationFrame(drawBars);
+  }
+
+  let thinkingPhase = 0;
+  function drawThinking() {
+    if (vizMode !== 'thinking') return;
+    const W = vizCanvas.width, H = vizCanvas.height;
+    vizCtx.clearRect(0, 0, W, H);
+    thinkingPhase += 0.04;
+    const dots = 5;
+    for (let i = 0; i < dots; i++) {
+      const phase = thinkingPhase - i * 0.5;
+      const amp   = Math.sin(phase) * 0.5 + 0.5;
+      const cy    = H / 2 + Math.sin(phase) * (H * 0.2);
+      const cx    = W / 2 + (i - Math.floor(dots/2)) * 32;
+      const r     = 5 + amp * 5;
+      vizCtx.beginPath();
+      vizCtx.arc(cx, cy, r, 0, Math.PI * 2);
+      vizCtx.fillStyle = `rgba(34,211,238,${0.3 + amp * 0.7})`;
+      vizCtx.fill();
+    }
+    requestAnimationFrame(drawThinking);
+  }
+
+  let speakPhase = 0;
+  function drawSpeaking() {
+    if (vizMode !== 'speaking') return;
+    const W = vizCanvas.width, H = vizCanvas.height;
+    vizCtx.clearRect(0, 0, W, H);
+    speakPhase += 0.06;
+    const points = 60;
+    vizCtx.beginPath();
+    for (let i = 0; i <= points; i++) {
+      const t = i / points;
+      const px = t * W;
+      const py = H/2 + Math.sin(t * Math.PI * 6 + speakPhase) * 28
+                     * Math.sin(t * Math.PI);
+      i === 0 ? vizCtx.moveTo(px, py) : vizCtx.lineTo(px, py);
+    }
+    vizCtx.strokeStyle = 'rgba(34,211,238,0.75)';
+    vizCtx.lineWidth = 2.5;
+    vizCtx.stroke();
+
+    vizCtx.beginPath();
+    for (let i = 0; i <= points; i++) {
+      const t = i / points;
+      const px = t * W;
+      const py = H/2 + Math.sin(t * Math.PI * 6 + speakPhase + 0.8) * 16
+                     * Math.sin(t * Math.PI);
+      i === 0 ? vizCtx.moveTo(px, py) : vizCtx.lineTo(px, py);
+    }
+    vizCtx.strokeStyle = 'rgba(59,130,246,0.5)';
+    vizCtx.lineWidth = 1.5;
+    vizCtx.stroke();
+
+    requestAnimationFrame(drawSpeaking);
+  }
+
+  function stopViz() {
+    cancelAnimationFrame(vizAnimId);
+    vizMode = 'idle';
+    vizCtx.clearRect(0, 0, vizCanvas.width, vizCanvas.height);
+  }
+
+  /* ═══════════════════════════════════════════════
+     STATE
+  ═══════════════════════════════════════════════ */
+  let sessionId     = null;
+  let mediaRecorder = null;
+  let recordingChunks = [];
+  let isRecording   = false;
+  let callActive    = false;
+  let mimeType      = 'audio/webm';
+
+  /* ── Platform & codec detection ── */
+  const isIOS = /iphone|ipad|ipod|crios|fxios/i.test(navigator.userAgent);
+  const isAndroid = /android/i.test(navigator.userAgent);
+
+  function detectMimeType() {
+    const candidates = isIOS
+      ? ['audio/mp4', 'audio/aac', 'audio/mpeg', 'audio/webm;codecs=opus', 'audio/webm']
+      : ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/mp4'];
+    for (const m of candidates) {
+      if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m;
     }
     return '';
-}
+  }
 
-// ═══════════════════════════════════════
-// AUDIO UNLOCK
-// ═══════════════════════════════════════
-async function unlockAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
-    if (audioCtx.state==='suspended') { try { await audioCtx.resume(); } catch(_){} }
+  function mimeToExt(mime) {
+    if (mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a')) return 'mp4';
+    if (mime.includes('ogg')) return 'ogg';
+    if (mime.includes('mpeg')) return 'mp3';
+    return 'webm';
+  }
+
+  /* Update info chips */
+  document.getElementById('chip-platform').textContent =
+    isIOS ? 'Platform: iOS' : isAndroid ? 'Platform: Android' : 'Platform: Desktop';
+
+  /* ═══════════════════════════════════════════════
+     UI HELPERS
+  ═══════════════════════════════════════════════ */
+  function setStatus(mode, label) {
+    const dot  = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    dot.className  = `status-dot ${mode}`;
+    text.textContent = label;
+  }
+
+  function setIdleLabel(txt) {
+    document.getElementById('idle-label').textContent = txt;
+  }
+
+  function showIdle(show) {
+    document.getElementById('idle-glyph').style.opacity = show ? '1' : '0';
+  }
+
+  function showToast(msg, duration = 2800) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration);
+  }
+
+  function setMicState(state) {
+    const btn  = document.getElementById('mic-btn');
+    const wrap = document.getElementById('mic-wrap');
+    const icon = document.getElementById('mic-icon');
+    btn.className = '';
+    wrap.className = 'mic-wrap';
+    if (state === 'idle') {
+      btn.classList.add('disabled');
+      btn.disabled = true;
+      icon.textContent = '🎙';
+    } else if (state === 'ready') {
+      icon.textContent = '🎙';
+      btn.disabled = false;
+    } else if (state === 'recording') {
+      btn.classList.add('recording');
+      wrap.classList.add('recording');
+      icon.textContent = '⏹';
+      btn.disabled = false;
+    } else if (state === 'thinking') {
+      btn.classList.add('disabled');
+      btn.disabled = true;
+      icon.textContent = '⏳';
+    }
+  }
+
+  function addBubble(text, who) {
+    const box = document.getElementById('transcript');
+    const ph  = document.getElementById('transcript-placeholder');
+    if (ph) ph.remove();
+
+    const wrap  = document.createElement('div');
+    const label = document.createElement('div');
+    const msg   = document.createElement('div');
+
+    label.className = 'bubble-label';
+    label.textContent = who === 'user' ? 'You' : 'IST Assistant';
+    msg.className = `bubble ${who}`;
+    msg.textContent = text;
+
+    wrap.appendChild(label);
+    wrap.appendChild(msg);
+    box.appendChild(wrap);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  /* ═══════════════════════════════════════════════
+     START CALL
+  ═══════════════════════════════════════════════ */
+  async function startCall() {
+    document.getElementById('start-btn').disabled = true;
+    setStatus('thinking', 'Connecting…');
+    setIdleLabel('Connecting…');
+
     try {
-        const b=audioCtx.createBuffer(1,1,16000), s=audioCtx.createBufferSource();
-        s.buffer=b; s.connect(audioCtx.destination); s.start(0);
-    } catch(_){}
-}
+      const res  = await fetch('/api/start_call', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Start failed');
 
-// ═══════════════════════════════════════
-// VAD CONTROL
-// ═══════════════════════════════════════
-function startVAD() {
-    if (!vadInstance || !isCallActive || agentSpeaking || requestInFlight) return;
-    try { vadInstance.start(); } catch(_){}
-    setStatus('active','<strong>Listening</strong> — Speak your question');
-}
+      sessionId   = data.session_id;
+      callActive  = true;
 
-function stopVAD() {
-    if (!vadInstance) return;
-    try { vadInstance.pause(); } catch(_){}
-}
+      document.getElementById('end-btn').disabled = false;
+      setStatus('active', 'Connected');
+      setMicState('ready');
+      setIdleLabel('Tap mic to speak');
+      showIdle(true);
 
-// Called after TTS finishes — adds cooldown to prevent speaker bleed
-// from immediately triggering VAD (echo of the agent's own voice)
-function resumeVADAfterSpeech() {
-    if (vadCooldownTimer) clearTimeout(vadCooldownTimer);
-    // 600ms cooldown: enough to clear speaker echo, short enough to feel responsive
-    vadCooldownTimer = setTimeout(() => {
-        vadCooldownTimer = null;
-        startVAD();
-    }, 600);
-}
+      if (data.greeting_audio_url) {
+        vizMode = 'speaking';
+        showIdle(false);
+        drawSpeaking();
+        await playAudio(data.greeting_audio_url);
+        stopViz();
+        showIdle(true);
+      }
 
-// ═══════════════════════════════════════
-// PLAYBACK
-// ═══════════════════════════════════════
-function playAudio(url, onDone) {
-    stopCurrentAudio();
+      addBubble('Hello, this is Institute of Space Technology. How can I help you today?', 'agent');
 
-    // Stop VAD completely while agent is speaking
-    // This is the KEY fix: background voices, doors, typing cannot trigger VAD
-    stopVAD();
-    agentSpeaking = true;
-    setStatus('speaking','🔊 <strong>Speaking…</strong>');
+    } catch (err) {
+      console.error('startCall error:', err);
+      showToast('⚠️ Failed to connect. Try again.');
+      setStatus('idle', 'Offline');
+      setIdleLabel('Tap to start');
+      document.getElementById('start-btn').disabled = false;
+      setMicState('idle');
+    }
+  }
 
-    const a = new Audio();
-    a.setAttribute('playsinline','true');
-    a.setAttribute('webkit-playsinline','true');
-    a.preload = 'auto';
-    a.src = url;
-    currentAudio = a;
+  /* ═══════════════════════════════════════════════
+     AUDIO PLAYBACK (cross-platform)
+  ═══════════════════════════════════════════════ */
+  function playAudio(url) {
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      audio.preload  = 'auto';
 
-    const finish = () => {
-        currentAudio = null;
-        agentSpeaking = false;
-        if (onDone) onDone();
-        // Resume VAD after cooldown (not immediately — prevents speaker bleed)
-        if (vadReady && !requestInFlight) resumeVADAfterSpeech();
-        else if (!vadReady) {
-            setStatus('active','<strong>Ready</strong> — Hold button to speak');
-        }
-    };
+      // iOS requires user-gesture unlock (we're inside button handler so it's fine)
+      if (isIOS) {
+        audio.setAttribute('playsinline', 'true');
+        audio.setAttribute('webkit-playsinline', 'true');
+      }
 
-    a.onended = finish;
-    a.onerror = finish;
-
-    const p = a.play();
-    if (p && p.catch) {
-        p.catch(() => {
-            setTimeout(() => {
-                const a2 = new Audio(url);
-                a2.setAttribute('playsinline','true');
-                a2.setAttribute('webkit-playsinline','true');
-                currentAudio = a2;
-                a2.onended = finish; a2.onerror = finish;
-                a2.play().catch(finish);
-            }, 100);
+      audio.onended  = resolve;
+      audio.onerror  = (e) => { console.warn('Audio playback error:', e); resolve(); };
+      audio.oncanplaythrough = () => {
+        audio.play().catch(e => {
+          console.warn('audio.play() rejected:', e);
+          resolve();
         });
-    }
-}
+      };
 
-function stopCurrentAudio() {
-    if (currentAudio) {
-        try { currentAudio.pause(); currentAudio.src=''; } catch(_){}
-        currentAudio = null;
-    }
-    agentSpeaking = false;
-}
-
-// ═══════════════════════════════════════
-// STATUS
-// ═══════════════════════════════════════
-function setStatus(type, html) {
-    const el=document.getElementById('statusDiv');
-    const tx=document.getElementById('statusText');
-    el.className='status'+(type?' '+type:'');
-    if(tx) tx.innerHTML=html;
-}
-function addMsg(text, cls) {
-    const d=document.createElement('div');
-    d.className='message '+cls; d.textContent=text;
-    const t=document.getElementById('transcript');
-    t.appendChild(d); t.scrollTop=t.scrollHeight;
-}
-function setProcessing(msg) {
-    const s=document.getElementById('transcriptStatus');
-    if(s) s.innerHTML=msg?`<p class="loading"><span class="spinner"></span>${msg}</p>`:'';
-}
-
-// ═══════════════════════════════════════
-// MANUAL MODE (iOS + VAD fallback)
-// ═══════════════════════════════════════
-function showManualMode() {
-    useManualMode = true;
-    const btn = document.getElementById('recordBtn');
-    btn.style.display = 'block';
-    document.getElementById('modeHint').textContent =
-        isIOS ? '📱 iPhone — Hold button to speak, release when done'
-              : '📱 Hold button to speak, release when done';
-
-    btn.addEventListener('touchstart', e => {
-        e.preventDefault();
-        if (!isCallActive||requestInFlight||agentSpeaking||isRecording) return;
-        startRec();
-    }, {passive:false});
-    const stopT = e => { e.preventDefault(); if(isRecording) stopRec(); };
-    btn.addEventListener('touchend',    stopT, {passive:false});
-    btn.addEventListener('touchcancel', stopT, {passive:false});
-    btn.addEventListener('mousedown',  ()=>{ if(!isCallActive||requestInFlight||agentSpeaking||isRecording) return; startRec(); });
-    document.addEventListener('mouseup', ()=>{ if(isRecording) stopRec(); });
-}
-
-function startRec() {
-    if (!stream) return;
-    const mime = bestMime();
-    try {
-        mediaRecorder = new MediaRecorder(stream, mime?{mimeType:mime}:{});
-        recChunks = [];
-        mediaRecorder.ondataavailable = e => { if(e.data.size>0) recChunks.push(e.data); };
-        mediaRecorder.start(100);
-        isRecording = true;
-        document.getElementById('recordBtn').textContent = '🔴 Recording… Release to send';
-        document.getElementById('recordBtn').classList.add('active');
-        setStatus('active','<strong>Recording</strong> — Release when done');
-    } catch(e) { console.error('MediaRecorder error:',e); }
-}
-
-async function stopRec() {
-    if (!isRecording||!mediaRecorder) return;
-    isRecording = false;
-    document.getElementById('recordBtn').textContent = '🎤 Hold to Speak';
-    document.getElementById('recordBtn').classList.remove('active');
-    await new Promise(resolve => {
-        mediaRecorder.onstop = async () => {
-            const raw = new Blob(recChunks,{type:bestMime()||'audio/webm'});
-            if (raw.size < 500) { setStatus('active','<strong>Ready</strong> — Hold button to speak'); resolve(); return; }
-            const wav = await toWav(raw);
-            await sendAudio(wav);
-            resolve();
-        };
-        mediaRecorder.stop();
+      // Append cache-buster to avoid stale 404 on token routes
+      audio.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
     });
-}
+  }
 
-// ═══════════════════════════════════════
-// START CALL
-// ═══════════════════════════════════════
-async function startCall() {
-    await unlockAudio();
-    document.getElementById('startBtn').disabled = true;
-    setStatus('active','<strong>Connecting…</strong>');
-    document.getElementById('transcript').innerHTML =
-        '<p class="loading"><span class="spinner"></span>Connecting…</p><div id="transcriptStatus"></div>';
+  /* ═══════════════════════════════════════════════
+     RECORDING
+  ═══════════════════════════════════════════════ */
+  document.getElementById('mic-btn').addEventListener('click', () => {
+    if (!callActive) return;
+    if (isRecording) stopRecording();
+    else startRecording();
+  });
 
-    // Mic
+  async function startRecording() {
     try {
-        stream = await navigator.mediaDevices.getUserMedia({
-            audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}
-        });
-    } catch(e) {
-        let msg = '⚠️ Microphone access denied.';
-        if (e.name==='NotFoundError')   msg = '⚠️ No microphone found.';
-        if (e.name==='NotAllowedError') msg = isIOS
-            ? '⚠️ iPhone: Settings → Safari → Microphone → Allow, then reload.'
-            : '⚠️ Please allow microphone access and reload.';
-        document.getElementById('transcript').innerHTML=`<p style="color:var(--danger);padding:10px;">${msg}</p>`;
-        document.getElementById('startBtn').disabled=false;
-        setStatus('','<strong>Ready</strong> — Click Start to begin');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      mimeType = detectMimeType();
+
+      document.getElementById('chip-codec').textContent =
+        'Codec: ' + (mimeType ? mimeType.split('/')[1].split(';')[0].toUpperCase() : 'default');
+
+      const options = mimeType ? { mimeType } : {};
+      mediaRecorder  = new MediaRecorder(stream, options);
+      recordingChunks = [];
+
+      mediaRecorder.ondataavailable = e => {
+        if (e.data && e.data.size > 0) recordingChunks.push(e.data);
+      };
+      mediaRecorder.onstop = handleRecordingStop;
+
+      mediaRecorder.start(isIOS ? 1000 : 250); // iOS needs larger timeslice
+      isRecording = true;
+
+      setMicState('recording');
+      setStatus('recording', 'Recording…');
+      showIdle(false);
+      startVizRecording(stream);
+
+    } catch (err) {
+      console.error('Mic error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        showToast('🎙 Microphone permission denied');
+      } else {
+        showToast('🎙 Could not access microphone');
+      }
+    }
+  }
+
+  function stopRecording() {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    isRecording = false;
+    cancelAnimationFrame(vizAnimId);
+  }
+
+  async function handleRecordingStop() {
+    setMicState('thinking');
+    setStatus('thinking', 'Thinking…');
+    vizMode = 'thinking';
+    showIdle(false);
+    drawThinking();
+
+    const ext  = mimeToExt(mimeType);
+    const blob = new Blob(recordingChunks, { type: mimeType || 'audio/webm' });
+
+    if (blob.size < 500) {
+      showToast('Recording too short — please try again');
+      stopViz(); showIdle(true);
+      setMicState('ready');
+      setStatus('active', 'Connected');
+      return;
+    }
+
+    const form = new FormData();
+    form.append('session_id', sessionId);
+    form.append('audio', blob, `recording.${ext}`);
+
+    try {
+      const res  = await fetch('/api/query', { method: 'POST', body: form });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        const msg = data.error || 'Server error';
+        showToast('⚠️ ' + msg);
+        stopViz(); showIdle(true);
+        setMicState('ready');
+        setStatus('active', 'Connected');
         return;
+      }
+
+      if (data.user_text) addBubble(data.user_text, 'user');
+      if (data.response)  addBubble(data.response,  'agent');
+
+      if (data.audio_url) {
+        stopViz();
+        vizMode = 'speaking';
+        showIdle(false);
+        drawSpeaking();
+        setStatus('active', 'Speaking…');
+        await playAudio(data.audio_url);
+      }
+
+    } catch (err) {
+      console.error('Query error:', err);
+      showToast('Network error. Please try again.');
+    } finally {
+      stopViz();
+      showIdle(true);
+      setIdleLabel('Tap mic to speak');
+      if (callActive) { setMicState('ready'); setStatus('active', 'Connected'); }
     }
+  }
 
-    // Server session
-    let data;
-    try {
-        const r = await fetch('/api/start_call',{method:'POST'});
-        data = await r.json();
-    } catch(e) {
-        document.getElementById('transcript').innerHTML=
-            '<p style="color:var(--danger);padding:10px;">⚠️ Cannot connect to server.</p>';
-        document.getElementById('startBtn').disabled=false;
-        stream.getTracks().forEach(t=>t.stop());
-        return;
-    }
+  /* ═══════════════════════════════════════════════
+     END CALL
+  ═══════════════════════════════════════════════ */
+  async function endCall() {
+    if (!callActive) return;
+    if (isRecording) stopRecording();
+    callActive = false;
 
-    sessionId = data.session_id;
-    isCallActive = true;
-    document.getElementById('endBtn').disabled = false;
-
-    // ── VAD init (Android/desktop only) ────────────────────────────────────
-    if (!isIOS && typeof vad !== 'undefined') {
-        try {
-            vadInstance = await vad.MicVAD.new({
-                getStream: async () => stream,
-
-                // onSpeechStart: fires when VAD detects the START of speech.
-                // We use this to interrupt the agent if the user starts talking.
-                // NOTE: VAD is paused during agentSpeaking, so this will NOT
-                // fire for background noise while TTS is playing.
-                onSpeechStart: () => {
-                    setStatus('heard','🎤 <strong>Heard you…</strong>');
-                },
-
-                // onSpeechEnd: fires when VAD detects silence after speech.
-                // This is where we send audio to server.
-                // Guards:
-                //   requestInFlight → already processing, ignore
-                //   agentSpeaking   → should never happen (VAD paused), but double-guard
-                //   audio.length < 6400 → less than 400ms, ignore noise/clicks
-                onSpeechEnd: async (audio) => {
-                    if (!isCallActive || requestInFlight || agentSpeaking) return;
-                    if (audio.length < 6400) return;  // < 400ms → noise, ignore
-                    const blob = new Blob([encodeWAV(audio,16000)],{type:'audio/wav'});
-                    await sendAudio(blob);
-                },
-
-                // ── VAD THRESHOLDS ──────────────────────────────────────────
-                // These are the most important settings for noise rejection.
-
-                // positiveSpeechThreshold (0-1):
-                // How confident the model must be that someone is SPEAKING.
-                // 0.85 = strict. Won't trigger on: doors, typing, background TV,
-                //        distant voices, coughing, paper rustling.
-                // Lower (0.6-0.7) = sensitive but more false triggers in noisy rooms.
-                positiveSpeechThreshold: 0.85,
-
-                // negativeSpeechThreshold (0-1):
-                // How low confidence drops before speech segment ENDS.
-                // Must be lower than positive. 0.40 = ends cleanly after real silence.
-                negativeSpeechThreshold: 0.40,
-
-                // minSpeechFrames: minimum consecutive speech frames (20ms each).
-                // 10 frames = 200ms. Anything shorter is ignored.
-                // Filters: door slams, claps, single coughs, keyboard clicks.
-                minSpeechFrames: 10,
-
-                // redemptionFrames: silent frames before ending the speech segment.
-                // 12 frames = 240ms of silence → ends utterance.
-                // Too high (20+) = feels laggy, waits too long after you stop talking.
-                // Too low (5-7)  = cuts you off mid-sentence.
-                redemptionFrames: 12,
-
-                // preSpeechPadFrames: frames of audio before detected speech to include.
-                // Prevents cutting off the first syllable of your question.
-                preSpeechPadFrames: 6,
-
-                onnxWASMBasePath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/',
-                baseAssetPath:    'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/'
-            });
-            vadReady = true;
-            console.log('VAD initialized OK');
-        } catch(e) {
-            console.warn('VAD init failed → manual mode:', e);
-        }
-    }
-
-    if (!vadReady) showManualMode();
-
-    // ── Greet ───────────────────────────────────────────────────────────────
-    document.getElementById('transcript').innerHTML =
-        '<div class="message agent-msg">🤖 Hello, this is Institute of Space Technology. How can I help you today?</div>' +
-        '<div id="transcriptStatus"><p class="loading" style="margin-top:8px;">Playing greeting…</p></div>';
-
-    if (data.greeting_audio_url) {
-        // Play greeting — VAD stays paused during this
-        playAudio(data.greeting_audio_url, () => {
-            setProcessing(vadReady ? 'Speak your question…' : 'Hold the button and speak your question…');
-        });
-    } else {
-        agentSpeaking = false;
-        if (vadReady) resumeVADAfterSpeech();
-        else setStatus('active','<strong>Ready</strong> — Hold the button and speak');
-    }
-}
-
-// ═══════════════════════════════════════
-// SEND AUDIO
-// ═══════════════════════════════════════
-async function sendAudio(blob) {
-    if (!sessionId||!isCallActive) return;
-
-    requestInFlight = true;
-    stopVAD();  // Keep VAD off during server round-trip
-    setProcessing('Processing…');
-    setStatus('active','<strong>Processing…</strong>');
-
-    const ctrl  = new AbortController();
-    const tid   = setTimeout(()=>ctrl.abort(), 50000);
-    // Show "taking a moment" only after 15s — reduces perceived slowness
-    const longT = setTimeout(()=>{ if(requestInFlight) setProcessing('Taking a moment, please wait…'); }, 15000);
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('end-btn').disabled   = true;
+    setMicState('idle');
+    setStatus('idle', 'Offline');
+    stopViz();
+    showIdle(true);
+    setIdleLabel('Tap to start');
 
     try {
-        const fd = new FormData();
-        fd.append('session_id', sessionId);
-        fd.append('audio', blob, 'audio.wav');
+      await fetch('/api/end_call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId })
+      });
+    } catch (_) { /* silent */ }
 
-        const res  = await fetch('/api/query',{method:'POST',body:fd,signal:ctrl.signal});
-        clearTimeout(tid); clearTimeout(longT);
-        const data = await res.json();
+    sessionId = null;
+    showToast('Call ended. Thank you!');
+  }
 
-        if (!res.ok || data.error) {
-            const msg = (data&&data.error)||'Something went wrong. Try again.';
-            if (data&&data.user_text) addMsg('🎤 '+data.user_text,'user-msg');
-            addMsg('🤖 '+msg,'agent-msg');
-            setProcessing('Speak your question again…');
-            finishRequest();
-            return;
-        }
-
-        if (data.user_text) addMsg('🎤 '+data.user_text,'user-msg');
-
-        if (data.audio_url && data.response) {
-            setProcessing('');
-            addMsg('🤖 '+data.response,'agent-msg');
-            requestInFlight = false;  // Clear before playback so barge-in works
-            playAudio(data.audio_url, () => {
-                setProcessing(vadReady?'Speak your next question…':'Hold button to speak…');
-            });
-        } else if (data.response) {
-            setProcessing('');
-            addMsg('🤖 '+data.response,'agent-msg');
-            finishRequest();
-        } else {
-            finishRequest();
-        }
-
-    } catch(e) {
-        clearTimeout(tid); clearTimeout(longT);
-        const msg = e.name==='AbortError'?'Request timed out. Try again.':e.message;
-        addMsg('⚠️ '+msg,'message');
-        setProcessing('Speak your question again…');
-        finishRequest();
+  /* ═══════════════════════════════════════════════
+     INIT
+  ═══════════════════════════════════════════════ */
+  window.addEventListener('load', () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast('⚠️ Your browser does not support audio recording');
     }
-}
-
-function finishRequest() {
-    requestInFlight = false;
-    agentSpeaking   = false;
-    if (vadReady) resumeVADAfterSpeech();
-    else setStatus('active','<strong>Ready</strong> — Hold button to speak');
-}
-
-// ═══════════════════════════════════════
-// END CALL
-// ═══════════════════════════════════════
-async function endCall() {
-    isCallActive = false;
-    if (vadCooldownTimer) { clearTimeout(vadCooldownTimer); vadCooldownTimer=null; }
-    stopCurrentAudio();
-    stopVAD();
-    if (isRecording&&mediaRecorder) { try{mediaRecorder.stop();}catch(_){} isRecording=false; }
-    if (vadInstance) { try{vadInstance.destroy();}catch(_){} vadInstance=null; }
-    if (stream) { stream.getTracks().forEach(t=>t.stop()); stream=null; }
-    if (sessionId) {
-        try { await fetch('/api/end_call',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId})}); } catch(_){}
-    }
-    requestInFlight=false; vadReady=false;
-    document.getElementById('endBtn').disabled   = true;
-    document.getElementById('startBtn').disabled = false;
-    document.getElementById('recordBtn').style.display = 'none';
-    document.getElementById('modeHint').textContent = '';
-    useManualMode = false;
-    setStatus('','<strong>Ended</strong> — Click Start to begin again');
-    addMsg('✓ Call ended. Click Start to begin a new call.','agent-msg');
-}
-
-// ═══════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════
-window.addEventListener('load', () => {
-    document.getElementById('startBtn').focus();
-    if (isIOS) document.getElementById('modeHint').textContent =
-        '📱 iPhone detected — tap Start, then hold button to speak';
-    const unlock = () => {
-        if (!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
-        if (audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
-    };
-    document.addEventListener('touchstart', unlock, {once:true,passive:true});
-    document.addEventListener('click',      unlock, {once:true});
-});
-</script>
+    setStatus('idle', 'Offline');
+    setIdleLabel('Tap to start');
+    drawIdleViz();
+  });
+  </script>
 </body>
 </html>

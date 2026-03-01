@@ -36,7 +36,8 @@ except Exception as e:
 
 def _is_ios(user_agent: str) -> bool:
     ua = (user_agent or "").lower()
-    return "iphone" in ua or "ipad" in ua or "ipod" in ua
+    # iPhone, iPad, iPod — also catch iOS Chrome (CriOS) and Firefox (FxiOS)
+    return any(x in ua for x in ("iphone", "ipad", "ipod", "crios", "fxios"))
 
 
 @app.route("/")
@@ -140,7 +141,22 @@ def query():
         if not session_id or not audio_file:
             return jsonify({"error": "Invalid request"}), 400
 
-        ext = "wav" if audio_file.filename and audio_file.filename.endswith(".wav") else "webm"
+        # Detect correct extension for Groq Whisper — wrong ext = transcription failure
+        # iOS Safari → audio/mp4 (.mp4/.m4a)
+        # Android/Chrome → audio/webm (.webm)
+        # Some browsers → audio/wav (.wav) or audio/ogg (.ogg)
+        filename = audio_file.filename or ""
+        content_type = audio_file.content_type or ""
+
+        if filename.endswith(".wav") or "wav" in content_type:
+            ext = "wav"
+        elif filename.endswith(".mp4") or filename.endswith(".m4a") or "mp4" in content_type or "m4a" in content_type:
+            ext = "mp4"
+        elif filename.endswith(".ogg") or "ogg" in content_type:
+            ext = "ogg"
+        else:
+            ext = "webm"  # default for Chrome/Android
+
         temp_path = f"temp_{uuid.uuid4()}.{ext}"
         audio_file.save(temp_path)
 
