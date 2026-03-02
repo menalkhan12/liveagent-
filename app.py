@@ -7,7 +7,11 @@ from dotenv import load_dotenv
 
 from rag import generate_answer, initialize_rag
 from stt import transcribe_audio
-from tts import generate_tts, get_and_clear, stream_tts_chunks, get_full_audio_bytes
+from tts import (
+    generate_tts, get_and_clear, stream_tts_chunks, get_full_audio_bytes,
+    _get_ios_cached, _set_ios_cached, _is_ios_generating, _wait_for_ios_cache,
+    _mark_ios_generating, _clear_ios_generating,
+)
 from livekit_utils import generate_livekit_token
 from utils import (
     init_call_record,
@@ -61,22 +65,52 @@ def tts_stream(token):
 
     Either way this is faster than the old disk-write approach.
     """
-    text = get_and_clear(token)
-    if not text:
-        logger.warning(f"TTS token not found: {token[:8]}")
-        return Response("Token not found or expired", status=404)
-
     ua = request.headers.get("User-Agent", "")
     ios = _is_ios(ua)
 
+    # iOS Safari often requests same URL 2x (range/seek). Serve from cache.
+    if ios:
+        cached = _get_ios_cached(token)
+        if cached:
+            return Response(
+                cached,
+                mimetype="audio/mpeg",
+                headers={
+                    "Content-Length": str(len(cached)),
+                    "Cache-Control": "no-cache",
+                    "Accept-Ranges": "bytes",
+                }
+            )
+
+    text = get_and_clear(token)
+    if not text:
+        # iOS: second request may arrive before first finishes; wait for cache
+        if ios and _is_ios_generating(token):
+            cached = _wait_for_ios_cache(token)
+            if cached:
+                return Response(
+                    cached,
+                    mimetype="audio/mpeg",
+                    headers={
+                        "Content-Length": str(len(cached)),
+                        "Cache-Control": "no-cache",
+                        "Accept-Ranges": "bytes",
+                    }
+                )
+        logger.warning(f"TTS token not found: {token[:8]}")
+        return Response("Token not found or expired", status=404)
+
     if ios:
         # Buffer entire audio in memory, send as complete response
-        # Fast because: no disk I/O, no file-write wait loop
+        # Mark generating so concurrent Safari requests can wait for cache
+        _mark_ios_generating(token)
         logger.info(f"TTS buffered mode (iOS): token {token[:8]}")
         try:
             audio_bytes = get_full_audio_bytes(text)
             if not audio_bytes:
+                _clear_ios_generating(token)
                 return Response("TTS generation failed", status=500)
+            _set_ios_cached(token, audio_bytes)
             return Response(
                 audio_bytes,
                 mimetype="audio/mpeg",
@@ -88,6 +122,7 @@ def tts_stream(token):
             )
         except Exception as e:
             logger.error(f"iOS TTS buffer error: {e}")
+            _clear_ios_generating(token)
             return Response("TTS error", status=500)
     else:
         # True streaming for Android/Chrome — audio starts playing immediately
