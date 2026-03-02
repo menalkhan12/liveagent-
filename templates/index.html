@@ -216,9 +216,9 @@ async function unlockAudio() {
 // VAD CONTROL
 // ═══════════════════════════════════════
 function startVAD() {
-    if (!vadInstance || !isCallActive || agentSpeaking || requestInFlight) return;
+    if (!vadInstance || !isCallActive || requestInFlight) return;
     try { vadInstance.start(); } catch(_){}
-    setStatus('active','<strong>Listening</strong> — Speak your question');
+    setStatus('active', agentSpeaking ? '<strong>Listening</strong> — Interrupt anytime' : '<strong>Listening</strong> — Speak your question');
 }
 
 function stopVAD() {
@@ -230,11 +230,11 @@ function stopVAD() {
 // from immediately triggering VAD (echo of the agent's own voice)
 function resumeVADAfterSpeech() {
     if (vadCooldownTimer) clearTimeout(vadCooldownTimer);
-    // 600ms cooldown: enough to clear speaker echo, short enough to feel responsive
+    // 400ms cooldown: enough to clear speaker echo, short enough to feel responsive
     vadCooldownTimer = setTimeout(() => {
         vadCooldownTimer = null;
         startVAD();
-    }, 600);
+    }, 400);
 }
 
 // ═══════════════════════════════════════
@@ -243,11 +243,13 @@ function resumeVADAfterSpeech() {
 function playAudio(url, onDone) {
     stopCurrentAudio();
 
-    // Stop VAD completely while agent is speaking
-    // This is the KEY fix: background voices, doors, typing cannot trigger VAD
-    stopVAD();
+    // Keep VAD RUNNING during TTS for barge-in (user can interrupt).
+    // onSpeechStart will stop TTS; strict thresholds reject background noise.
     agentSpeaking = true;
-    setStatus('speaking','🔊 <strong>Speaking…</strong>');
+    setStatus('speaking','🔊 <strong>Speaking…</strong> — Say "stop" or interrupt anytime');
+
+    // Start VAD so user can interrupt; was stopped during sendAudio
+    if (vadReady && !requestInFlight) startVAD();
 
     const a = new Audio();
     a.setAttribute('playsinline','true');
@@ -259,10 +261,11 @@ function playAudio(url, onDone) {
     const finish = () => {
         currentAudio = null;
         agentSpeaking = false;
+        stopVAD();  // Stop immediately to avoid capturing speaker echo
         if (onDone) onDone();
-        // Resume VAD after cooldown (not immediately — prevents speaker bleed)
+        // Resume VAD after cooldown (prevents speaker bleed)
         if (vadReady && !requestInFlight) resumeVADAfterSpeech();
-        else if (!vadReady) {
+        else if (!vadReady && isIOS) {
             setStatus('active','<strong>Ready</strong> — Hold button to speak');
         }
     };
@@ -412,74 +415,76 @@ async function startCall() {
     isCallActive = true;
     document.getElementById('endBtn').disabled = false;
 
-    // ── VAD init (Android/desktop only) ────────────────────────────────────
+    // ── VAD init (Android/desktop only; iOS uses manual hold-to-speak) ──────
     if (!isIOS && typeof vad !== 'undefined') {
-        try {
-            vadInstance = await vad.MicVAD.new({
+        const vadOpts = {
                 getStream: async () => stream,
 
-                // onSpeechStart: fires when VAD detects the START of speech.
-                // We use this to interrupt the agent if the user starts talking.
-                // NOTE: VAD is paused during agentSpeaking, so this will NOT
-                // fire for background noise while TTS is playing.
+                // onSpeechStart: BARGE-IN — user interrupts agent.
+                // Stop TTS immediately so we can listen to their query.
                 onSpeechStart: () => {
-                    setStatus('heard','🎤 <strong>Heard you…</strong>');
+                    if (agentSpeaking) {
+                        stopCurrentAudio();
+                        setStatus('heard','🎤 <strong>Interrupted — listening…</strong>');
+                    } else {
+                        setStatus('heard','🎤 <strong>Heard you…</strong>');
+                    }
                 },
 
                 // onSpeechEnd: fires when VAD detects silence after speech.
-                // This is where we send audio to server.
-                // Guards:
-                //   requestInFlight → already processing, ignore
-                //   agentSpeaking   → should never happen (VAD paused), but double-guard
-                //   audio.length < 6400 → less than 400ms, ignore noise/clicks
+                // Sends audio to server. requestInFlight guards against double-send.
+                // audio.length < 4800 = <300ms, ignore clicks/door slams.
                 onSpeechEnd: async (audio) => {
-                    if (!isCallActive || requestInFlight || agentSpeaking) return;
-                    if (audio.length < 6400) return;  // < 400ms → noise, ignore
+                    if (!isCallActive || requestInFlight) return;
+                    if (audio.length < 4800) return;  // < 300ms → noise, ignore
                     const blob = new Blob([encodeWAV(audio,16000)],{type:'audio/wav'});
                     await sendAudio(blob);
                 },
 
-                // ── VAD THRESHOLDS ──────────────────────────────────────────
-                // These are the most important settings for noise rejection.
+                // ── VAD THRESHOLDS (noise rejection: doors, typing, background voices) ──
+                // positiveSpeechThreshold: must be very confident it's real speech.
+                // 0.88 = strict — rejects background TV, distant voices, doors, typing.
+                positiveSpeechThreshold: 0.88,
+                negativeSpeechThreshold: 0.38,
 
-                // positiveSpeechThreshold (0-1):
-                // How confident the model must be that someone is SPEAKING.
-                // 0.85 = strict. Won't trigger on: doors, typing, background TV,
-                //        distant voices, coughing, paper rustling.
-                // Lower (0.6-0.7) = sensitive but more false triggers in noisy rooms.
-                positiveSpeechThreshold: 0.85,
+                // minSpeechMs: <300ms = door slam, clap, cough → ignore
+                minSpeechMs: 300,
+                // redemptionMs: 500ms silence ends utterance (faster than 1400 default)
+                redemptionMs: 500,
+                // preSpeechPadMs: capture start of question
+                preSpeechPadMs: 200,
 
-                // negativeSpeechThreshold (0-1):
-                // How low confidence drops before speech segment ENDS.
-                // Must be lower than positive. 0.40 = ends cleanly after real silence.
-                negativeSpeechThreshold: 0.40,
-
-                // minSpeechFrames: minimum consecutive speech frames (20ms each).
-                // 10 frames = 200ms. Anything shorter is ignored.
-                // Filters: door slams, claps, single coughs, keyboard clicks.
-                minSpeechFrames: 10,
-
-                // redemptionFrames: silent frames before ending the speech segment.
-                // 12 frames = 240ms of silence → ends utterance.
-                // Too high (20+) = feels laggy, waits too long after you stop talking.
-                // Too low (5-7)  = cuts you off mid-sentence.
-                redemptionFrames: 12,
-
-                // preSpeechPadFrames: frames of audio before detected speech to include.
-                // Prevents cutting off the first syllable of your question.
-                preSpeechPadFrames: 6,
-
+                // Fallback for Android/Chrome where AudioWorklet can fail
+                processorType: 'auto',
                 onnxWASMBasePath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/',
                 baseAssetPath:    'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/'
-            });
+            };
+        try {
+            vadInstance = await vad.MicVAD.new(vadOpts);
             vadReady = true;
             console.log('VAD initialized OK');
         } catch(e) {
-            console.warn('VAD init failed → manual mode:', e);
+            console.warn('VAD init failed, retrying with ScriptProcessor:', e);
+            try {
+                vadOpts.processorType = 'ScriptProcessor';
+                vadInstance = await vad.MicVAD.new(vadOpts);
+                vadReady = true;
+                console.log('VAD initialized OK (ScriptProcessor fallback)');
+            } catch(e2) {
+                console.warn('VAD init failed → manual mode:', e2);
+            }
         }
     }
 
-    if (!vadReady) showManualMode();
+    // Manual "Hold to Speak" only on iPhone; Android/Web use hands-free VAD
+    if (!vadReady) {
+        if (isIOS) {
+            showManualMode();
+        } else {
+            addMsg('⚠️ Voice detection unavailable. Please refresh the page and try again.', 'agent-msg');
+            setStatus('','<strong>Error</strong> — Voice detection failed');
+        }
+    }
 
     // ── Greet ───────────────────────────────────────────────────────────────
     document.getElementById('transcript').innerHTML =
@@ -487,14 +492,14 @@ async function startCall() {
         '<div id="transcriptStatus"><p class="loading" style="margin-top:8px;">Playing greeting…</p></div>';
 
     if (data.greeting_audio_url) {
-        // Play greeting — VAD stays paused during this
+        // Play greeting — VAD runs for barge-in (user can interrupt)
         playAudio(data.greeting_audio_url, () => {
-            setProcessing(vadReady ? 'Speak your question…' : 'Hold the button and speak your question…');
+            setProcessing(vadReady ? 'Speak your question…' : (isIOS ? 'Hold the button and speak your question…' : ''));
         });
     } else {
         agentSpeaking = false;
         if (vadReady) resumeVADAfterSpeech();
-        else setStatus('active','<strong>Ready</strong> — Hold the button and speak');
+        else if (isIOS) setStatus('active','<strong>Ready</strong> — Hold the button and speak');
     }
 }
 
@@ -539,7 +544,7 @@ async function sendAudio(blob) {
             addMsg('🤖 '+data.response,'agent-msg');
             requestInFlight = false;  // Clear before playback so barge-in works
             playAudio(data.audio_url, () => {
-                setProcessing(vadReady?'Speak your next question…':'Hold button to speak…');
+                setProcessing(vadReady ? 'Speak your next question…' : (isIOS ? 'Hold button to speak…' : ''));
             });
         } else if (data.response) {
             setProcessing('');
@@ -562,7 +567,7 @@ function finishRequest() {
     requestInFlight = false;
     agentSpeaking   = false;
     if (vadReady) resumeVADAfterSpeech();
-    else setStatus('active','<strong>Ready</strong> — Hold button to speak');
+    else if (isIOS) setStatus('active','<strong>Ready</strong> — Hold button to speak');
 }
 
 // ═══════════════════════════════════════
@@ -594,8 +599,9 @@ async function endCall() {
 // ═══════════════════════════════════════
 window.addEventListener('load', () => {
     document.getElementById('startBtn').focus();
-    if (isIOS) document.getElementById('modeHint').textContent =
-        '📱 iPhone detected — tap Start, then hold button to speak';
+    document.getElementById('modeHint').textContent = isIOS
+        ? '📱 iPhone — tap Start, then hold button to speak'
+        : '📱 Android/Web — tap Start, then speak naturally (no button needed)';
     const unlock = () => {
         if (!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
         if (audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
