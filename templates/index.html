@@ -506,11 +506,11 @@
   let requestInFlight = false;  // true while processing a user query
 
   // Normal listening — rejects typing, doors, distant background voices
-  const VAD_THRESHOLD_NORMAL   = 0.018;
+  const VAD_THRESHOLD_NORMAL   = 0.013;
   const VAD_CONFIRM_NORMAL_MS  = 350;
 
   // Barge-in mode — stricter, needs deliberate close voice to interrupt agent
-  const VAD_THRESHOLD_BARGEIN  = 0.030;
+  const VAD_THRESHOLD_BARGEIN  = 0.025;
   const VAD_CONFIRM_BARGEIN_MS = 500;
 
   const VAD_SILENCE_MS         = 1300;
@@ -561,7 +561,10 @@
 
   function resumeVAD() {
     if (!vadActive) return;
-    vadPaused=false; vadSpeaking=false;
+    vadPaused   = false;
+    vadSpeaking = false;
+    clearTimeout(vadSpeakTimer);   vadSpeakTimer   = null;
+    clearTimeout(vadSilenceTimer); vadSilenceTimer = null;
     setStatus('active', 'Listening — speak your question');
   }
 
@@ -697,9 +700,13 @@
               agentBubble.textContent = '🤖 ' + agentFullText;
               document.getElementById('transcript').scrollTop = 99999;
             }
-            // Mark agent as speaking — VAD now uses barge-in thresholds
-            agentSpeaking = true;
-            requestInFlight = false;  // allow barge-in detection
+            // Agent is speaking — unpause VAD with strict barge-in thresholds
+            // so user can interrupt but background noise is ignored
+            agentSpeaking   = true;
+            requestInFlight = false;
+            vadPaused       = false;   // KEY FIX: allow VAD loop to run for barge-in
+            vadSpeaking     = false;
+            clearTimeout(vadSpeakTimer); vadSpeakTimer = null;
             setStatus('active', 'Speaking… (speak to interrupt)');
             enqueueAudio(event.audio_url);
 
