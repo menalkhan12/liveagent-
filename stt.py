@@ -4,12 +4,41 @@ from groq_utils import get_client, num_keys, GROQ_KEYS
 
 logger = logging.getLogger(__name__)
 
+# Whisper uses this prompt to bias recognition toward domain-specific vocabulary.
+# The more phrases that match what users actually say, the more accurate transcription will be.
 WHISPER_PROMPT = (
-    "IST, Institute of Space Technology, fee structure, hostel charges, "
-    "transport, merit, aggregate, admission, BS Electrical Engineering, "
-    "BS Aerospace Engineering, BS Avionics Engineering, semester fee, "
-    "lakh, rupees, FSC, matric, entry test, closing merit"
+    "IST, Institute of Space Technology, Islamabad. "
+    "fee structure, fee of electrical engineering, fee of aerospace engineering, "
+    "fee of avionics engineering, fee of mechanical engineering, fee of computer engineering, "
+    "fee of software engineering, fee of computer science, fee of space science, "
+    "fee of mathematics, fee of biotechnology, fee of materials science, "
+    "fee of data science, fee of artificial intelligence, semester fee, per semester fee, "
+    "how much is the fee, total fee, annual fee, "
+    "merit based scholarship, need based scholarship, financial aid, scholarship at IST, "
+    "does IST offer scholarship, is scholarship available, "
+    "closing merit, last year merit, merit 2024, merit 2023, merit aggregate, "
+    "calculate merit, aggregate formula, merit calculation, "
+    "BS Electrical Engineering, BS Computer Engineering, BS Aerospace Engineering, "
+    "BS Avionics Engineering, BS Mechanical Engineering, BS Software Engineering, "
+    "BS Computer Science, BS Space Science, BS Physics, BS Mathematics, "
+    "BS Data Science, BS Artificial Intelligence, BS Biotechnology, "
+    "BS Materials Science and Engineering, "
+    "MS Aerospace, MS Electrical, MS Computer Science, PhD program, "
+    "Electrical Engineering department, Computing department, "
+    "Aeronautics and Astronautics department, Avionics department, "
+    "Mechanical Engineering department, Space Science department, "
+    "Applied Mathematics department, Humanities department, "
+    "admission open, admission closed, last date to apply, application deadline, "
+    "entry test, FSc, matric, pre-engineering, pre-medical, ICS, DAE, A-level, "
+    "hostel, hostel charges, hostel fee, accommodation, transport, bus route, "
+    "lakh, thousand rupees, Pakistani rupees, "
+    "research lab, Space Systems Lab, Astronomy Resource Center, telescope, "
+    "NCFA, remote sensing, CubeSat, iCube, "
+    "programs offered, departments at IST, how many departments, "
+    "eligibility criteria, who can apply, can I apply, "
+    "what is IST, about IST, IST history, IST location, IST accredited"
 )
+
 
 def transcribe_audio(file_path):
     try:
