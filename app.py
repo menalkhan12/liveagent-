@@ -77,7 +77,7 @@ def tts_stream(token):
                 mimetype="audio/mpeg",
                 headers={
                     "Content-Length": str(len(cached)),
-                    "Cache-Control": "no-cache",
+                    "Cache-Control": "public, max-age=3600",
                     "Accept-Ranges": "bytes",
                 }
             )
@@ -93,7 +93,7 @@ def tts_stream(token):
                     mimetype="audio/mpeg",
                     headers={
                         "Content-Length": str(len(cached)),
-                        "Cache-Control": "no-cache",
+                        "Cache-Control": "public, max-age=3600",
                         "Accept-Ranges": "bytes",
                     }
                 )
@@ -116,8 +116,8 @@ def tts_stream(token):
                 mimetype="audio/mpeg",
                 headers={
                     "Content-Length": str(len(audio_bytes)),
-                    "Cache-Control": "no-cache",
-                    "Accept-Ranges": "bytes",  # iOS needs this for seeking/playback
+                    "Cache-Control": "public, max-age=3600",
+                    "Accept-Ranges": "bytes",
                 }
             )
         except Exception as e:
