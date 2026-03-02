@@ -660,36 +660,35 @@
   /* ═══════════════════════════════════════════════
      STATE
   ═══════════════════════════════════════════════ */
-  let sessionId      = null;
-  let mediaRecorder  = null;
+  let sessionId       = null;
+  let mediaRecorder   = null;
   let recordingChunks = [];
-  let isRecording    = false;
-  let callActive     = false;
-  let mimeType       = 'audio/webm';
-  let currentAudio   = null;   // track playing audio so we can interrupt it
+  let isRecording     = false;
+  let callActive      = false;
+  let mimeType        = 'audio/webm';
+  let currentAudio    = null;  // for interrupt support (iOS + VAD mode)
 
-  /* ── Platform & codec detection ── */
-  const isIOS = /iphone|ipad|ipod|crios|fxios/i.test(navigator.userAgent);
+  /* ── Platform detection ── */
+  const isIOS     = /iphone|ipad|ipod|crios|fxios/i.test(navigator.userAgent);
   const isAndroid = /android/i.test(navigator.userAgent);
+  const useVAD    = !isIOS;   // Android + Desktop get VAD + streaming mode
 
   function detectMimeType() {
     const candidates = isIOS
-      ? ['audio/mp4', 'audio/aac', 'audio/mpeg', 'audio/webm;codecs=opus', 'audio/webm']
-      : ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/mp4'];
-    for (const m of candidates) {
+      ? ['audio/mp4','audio/aac','audio/mpeg','audio/webm;codecs=opus','audio/webm']
+      : ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg','audio/mp4'];
+    for (const m of candidates)
       if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m;
-    }
     return '';
   }
 
   function mimeToExt(mime) {
-    if (mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a')) return 'mp4';
-    if (mime.includes('ogg')) return 'ogg';
+    if (mime.includes('mp4')||mime.includes('aac')||mime.includes('m4a')) return 'mp4';
+    if (mime.includes('ogg'))  return 'ogg';
     if (mime.includes('mpeg')) return 'mp3';
     return 'webm';
   }
 
-  /* Update info chips */
   document.getElementById('chip-platform').textContent =
     isIOS ? 'Platform: iOS' : isAndroid ? 'Platform: Android' : 'Platform: Desktop';
 
@@ -697,75 +696,418 @@
      UI HELPERS
   ═══════════════════════════════════════════════ */
   function setStatus(mode, label) {
-    const dot  = document.getElementById('status-dot');
-    const text = document.getElementById('status-text');
-    dot.className  = `status-dot ${mode}`;
-    text.textContent = label;
+    document.getElementById('status-dot').className = `status-dot ${mode}`;
+    document.getElementById('status-text').textContent = label;
   }
-
-  function setIdleLabel(txt) {
-    document.getElementById('idle-label').textContent = txt;
-  }
-
-  function showIdle(show) {
-    document.getElementById('idle-glyph').style.opacity = show ? '1' : '0';
-  }
-
-  function showToast(msg, duration = 2800) {
+  function setIdleLabel(t) { document.getElementById('idle-label').textContent = t; }
+  function showIdle(s)     { document.getElementById('idle-glyph').style.opacity = s ? '1' : '0'; }
+  function showToast(msg, dur = 2800) {
     const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), duration);
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), dur);
   }
 
   function setMicState(state) {
     const btn  = document.getElementById('mic-btn');
     const wrap = document.getElementById('mic-wrap');
     const icon = document.getElementById('mic-icon');
-    btn.className = '';
-    wrap.className = 'mic-wrap';
-    if (state === 'idle') {
-      btn.classList.add('disabled');
-      btn.disabled = true;
-      icon.textContent = '🎙';
-    } else if (state === 'ready') {
-      icon.textContent = '🎙';
-      btn.disabled = false;
-    } else if (state === 'speaking') {
-      // Agent is speaking — mic stays enabled so user can interrupt
-      icon.textContent = '🎙';
-      btn.disabled = false;
-      btn.title = 'Interrupt & ask next question';
-    } else if (state === 'recording') {
-      btn.classList.add('recording');
-      wrap.classList.add('recording');
-      icon.textContent = '⏹';
-      btn.disabled = false;
-    } else if (state === 'thinking') {
-      btn.classList.add('disabled');
-      btn.disabled = true;
-      icon.textContent = '⏳';
+    btn.className = ''; wrap.className = 'mic-wrap';
+    if (state === 'idle')       { btn.classList.add('disabled'); btn.disabled = true;  icon.textContent = '🎙'; }
+    else if (state === 'ready') {                                 btn.disabled = false; icon.textContent = '🎙'; }
+    else if (state === 'speaking') {
+      btn.disabled = false; icon.textContent = '🎙'; btn.title = 'Interrupt & ask next question';
     }
+    else if (state === 'recording') {
+      btn.classList.add('recording'); wrap.classList.add('recording'); btn.disabled = false; icon.textContent = '⏹';
+    }
+    else if (state === 'thinking') { btn.classList.add('disabled'); btn.disabled = true; icon.textContent = '⏳'; }
   }
 
   function addBubble(text, who) {
     const box = document.getElementById('transcript');
     const ph  = document.getElementById('transcript-placeholder');
     if (ph) ph.remove();
-
-    const wrap  = document.createElement('div');
-    const label = document.createElement('div');
-    const msg   = document.createElement('div');
-
-    label.className = 'bubble-label';
+    const wrap = document.createElement('div');
+    const label= document.createElement('div');
+    const msg  = document.createElement('div');
+    label.className   = 'bubble-label';
     label.textContent = who === 'user' ? 'You' : 'IST Assistant';
-    msg.className = `bubble ${who}`;
-    msg.textContent = text;
-
-    wrap.appendChild(label);
-    wrap.appendChild(msg);
+    msg.className     = `bubble ${who}`;
+    msg.textContent   = text;
+    wrap.appendChild(label); wrap.appendChild(msg);
     box.appendChild(wrap);
     box.scrollTop = box.scrollHeight;
+    return msg;  // return for live-update
+  }
+
+  /* ═══════════════════════════════════════════════
+     AUDIO PLAYBACK  (cross-platform)
+  ═══════════════════════════════════════════════ */
+  function playAudio(url) {
+    return new Promise(resolve => {
+      const audio    = new Audio();
+      audio.preload  = 'auto';
+      currentAudio   = audio;
+      if (isIOS) {
+        audio.setAttribute('playsinline','true');
+        audio.setAttribute('webkit-playsinline','true');
+      }
+      audio.onended  = () => { currentAudio = null; resolve(); };
+      audio.onerror  = () => { currentAudio = null; resolve(); };
+      audio.oncanplaythrough = () => audio.play().catch(() => { currentAudio = null; resolve(); });
+      audio.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+    });
+  }
+
+  function interruptAudio() {
+    if (currentAudio) {
+      currentAudio.onended = null; currentAudio.onerror = null;
+      currentAudio.pause(); currentAudio.src = '';
+      currentAudio = null;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════
+     AUDIO QUEUE  (for streaming sentence playback)
+  ═══════════════════════════════════════════════ */
+  let audioQueue    = [];
+  let queuePlaying  = false;
+  let queueDoneCallback = null;
+
+  async function drainQueue() {
+    if (queuePlaying) return;
+    queuePlaying = true;
+    while (audioQueue.length > 0 && callActive) {
+      const url = audioQueue.shift();
+      await playAudio(url);
+      if (!currentAudio && audioQueue.length === 0) break;  // interrupted
+    }
+    queuePlaying = false;
+    if (queueDoneCallback) { queueDoneCallback(); queueDoneCallback = null; }
+  }
+
+  function enqueueAudio(url) {
+    audioQueue.push(url);
+    drainQueue();
+  }
+
+  function clearQueue() {
+    audioQueue = [];
+    interruptAudio();
+    queuePlaying = false;
+  }
+
+  /* ═══════════════════════════════════════════════
+     VAD  (Android / Desktop only)
+  ═══════════════════════════════════════════════ */
+  let vadStream        = null;  // persistent mic stream
+  let vadAudioCtx      = null;
+  let vadAnalyser      = null;
+  let vadRecorder      = null;
+  let vadChunks        = [];
+  let vadActive        = false; // true = VAD loop running
+  let vadSpeaking      = false; // true = currently capturing speech
+  let vadPaused        = false; // paused during agent response
+  let vadSilenceTimer  = null;
+  let vadSpeakTimer    = null;
+  let vadAnimFrame     = null;
+
+  // Thresholds
+  const VAD_SPEECH_THRESHOLD  = 0.010;  // RMS above this = voice
+  const VAD_SPEECH_CONFIRM_MS = 250;    // must stay above threshold this long to trigger
+  const VAD_SILENCE_MS        = 1300;   // silence this long after speech = end of utterance
+  const VAD_MIN_SPEECH_MS     = 400;    // ignore clips shorter than this
+
+  let vadSpeechStart = 0;
+
+  function getRMS(dataArray) {
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+      const v = (dataArray[i] - 128) / 128;
+      sum += v * v;
+    }
+    return Math.sqrt(sum / dataArray.length);
+  }
+
+  async function startVAD() {
+    if (!useVAD || vadActive) return;
+    try {
+      vadStream   = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      vadAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = vadAudioCtx.createMediaStreamSource(vadStream);
+      vadAnalyser  = vadAudioCtx.createAnalyser();
+      vadAnalyser.fftSize = 256;
+      source.connect(vadAnalyser);
+      mimeType = detectMimeType();
+      document.getElementById('chip-codec').textContent =
+        'Codec: ' + (mimeType ? mimeType.split('/')[1].split(';')[0].toUpperCase() : 'default');
+      vadActive  = true;
+      vadPaused  = false;
+      vadSpeaking = false;
+      vadLoop();
+      setStatus('active', 'Listening…');
+      setIdleLabel('Speak anytime…');
+      showIdle(true);
+    } catch (err) {
+      console.error('VAD start error:', err);
+      showToast('🎙 Microphone permission required');
+    }
+  }
+
+  function stopVAD() {
+    vadActive = false;
+    cancelAnimationFrame(vadAnimFrame);
+    clearTimeout(vadSilenceTimer);
+    clearTimeout(vadSpeakTimer);
+    if (vadRecorder && vadRecorder.state !== 'inactive') {
+      vadRecorder.stop();
+    }
+    if (vadStream) {
+      vadStream.getTracks().forEach(t => t.stop());
+      vadStream = null;
+    }
+    if (vadAudioCtx) { vadAudioCtx.close(); vadAudioCtx = null; }
+    vadSpeaking = false; vadPaused = false;
+  }
+
+  function pauseVAD() {
+    vadPaused = true;
+    // Stop any in-progress recording cleanly
+    if (vadRecorder && vadRecorder.state !== 'inactive') {
+      vadRecorder.stop();
+    }
+    vadSpeaking = false;
+    clearTimeout(vadSilenceTimer);
+    clearTimeout(vadSpeakTimer);
+  }
+
+  function resumeVAD() {
+    if (!vadActive) return;
+    vadPaused   = false;
+    vadSpeaking = false;
+    setStatus('active', 'Listening…');
+    setIdleLabel('Speak anytime…');
+    showIdle(true);
+    stopViz();
+  }
+
+  function vadLoop() {
+    if (!vadActive) return;
+    const data = new Uint8Array(vadAnalyser.fftSize);
+    vadAnalyser.getByteTimeDomainData(data);
+    const rms = getRMS(data);
+
+    if (!vadPaused) {
+      if (!vadSpeaking) {
+        // Waiting for speech to start
+        if (rms > VAD_SPEECH_THRESHOLD) {
+          if (!vadSpeakTimer) {
+            vadSpeakTimer = setTimeout(() => {
+              vadSpeakTimer = null;
+              if (vadPaused || !vadActive) return;
+              // Confirmed speech — start recording
+              vadStartCapture();
+            }, VAD_SPEECH_CONFIRM_MS);
+          }
+        } else {
+          clearTimeout(vadSpeakTimer);
+          vadSpeakTimer = null;
+        }
+      } else {
+        // Currently capturing — watch for silence
+        if (rms < VAD_SPEECH_THRESHOLD) {
+          if (!vadSilenceTimer) {
+            vadSilenceTimer = setTimeout(() => {
+              vadSilenceTimer = null;
+              if (!vadSpeaking || vadPaused) return;
+              vadStopCapture();
+            }, VAD_SILENCE_MS);
+          }
+        } else {
+          clearTimeout(vadSilenceTimer);
+          vadSilenceTimer = null;
+        }
+      }
+    }
+
+    vadAnimFrame = requestAnimationFrame(vadLoop);
+  }
+
+  function vadStartCapture() {
+    if (!vadStream || vadSpeaking || vadPaused) return;
+    vadSpeaking  = true;
+    vadChunks    = [];
+    vadSpeechStart = Date.now();
+    const opts = mimeType ? { mimeType } : {};
+    vadRecorder = new MediaRecorder(vadStream, opts);
+    vadRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) vadChunks.push(e.data); };
+    vadRecorder.onstop = vadHandleStop;
+    vadRecorder.start(250);
+
+    // Update UI
+    isRecording = true;
+    setMicState('recording');
+    setStatus('recording', 'Listening…');
+    showIdle(false);
+    // Show waveform using existing analyser
+    vizMode = 'recording';
+    drawBarsFromAnalyser();
+  }
+
+  function vadStopCapture() {
+    if (!vadRecorder || vadRecorder.state === 'inactive') return;
+    vadSpeaking = false;
+    isRecording = false;
+    vadRecorder.stop();
+    clearTimeout(vadSilenceTimer);
+    vadSilenceTimer = null;
+  }
+
+  // Visualizer driven by VAD analyser
+  function drawBarsFromAnalyser() {
+    if (vizMode !== 'recording' || !vadAnalyser) return;
+    const dataArr = new Uint8Array(vadAnalyser.frequencyBinCount);
+    vadAnalyser.getByteFrequencyData(dataArr);
+    const W = vizCanvas.width, H = vizCanvas.height;
+    vizCtx.clearRect(0, 0, W, H);
+    const bars = 28, barW = Math.floor(W / (bars + bars * 0.4));
+    const gap = Math.floor(barW * 0.4);
+    const total = bars * barW + (bars - 1) * gap;
+    let x = (W - total) / 2;
+    for (let i = 0; i < bars; i++) {
+      const val = (dataArr[Math.floor(i * dataArr.length / bars)] || 0) / 255;
+      const h   = Math.max(4, val * H * 0.78);
+      const grad = vizCtx.createLinearGradient(0, H/2-h/2, 0, H/2+h/2);
+      grad.addColorStop(0,   'rgba(34,211,238,0.9)');
+      grad.addColorStop(0.5, 'rgba(59,130,246,0.85)');
+      grad.addColorStop(1,   'rgba(34,211,238,0.9)');
+      vizCtx.fillStyle = grad;
+      vizCtx.beginPath();
+      vizCtx.roundRect(x, H/2-h/2, barW, h, barW/2);
+      vizCtx.fill();
+      x += barW + gap;
+    }
+    vizAnimId = requestAnimationFrame(drawBarsFromAnalyser);
+  }
+
+  async function vadHandleStop() {
+    const duration = Date.now() - vadSpeechStart;
+    if (duration < VAD_MIN_SPEECH_MS || vadChunks.length === 0) {
+      // Too short — ignore, resume listening
+      isRecording = false;
+      if (!vadPaused && callActive) resumeVAD();
+      return;
+    }
+
+    pauseVAD();  // stop listening during processing
+    cancelAnimationFrame(vizAnimId);
+
+    setMicState('thinking');
+    setStatus('thinking', 'Thinking…');
+    vizMode = 'thinking';
+    showIdle(false);
+    drawThinking();
+
+    const ext  = mimeToExt(mimeType);
+    const blob = new Blob(vadChunks, { type: mimeType || 'audio/webm' });
+
+    if (blob.size < 500) {
+      showToast('Audio too short, try again');
+      stopViz(); showIdle(true);
+      if (callActive) resumeVAD();
+      return;
+    }
+
+    await sendAudioStream(blob, ext);
+  }
+
+  /* ═══════════════════════════════════════════════
+     SSE STREAMING  (Android / Desktop)
+  ═══════════════════════════════════════════════ */
+  async function sendAudioStream(blob, ext) {
+    const form = new FormData();
+    form.append('session_id', sessionId);
+    form.append('audio', blob, `recording.${ext}`);
+
+    let agentBubble    = null;
+    let agentFullText  = '';
+    audioQueue         = [];
+    queuePlaying       = false;
+
+    try {
+      const res = await fetch('/api/query_stream', { method: 'POST', body: form });
+      if (!res.ok) throw new Error('Server error');
+
+      const reader = res.body.getReader();
+      const decoder= new TextDecoder();
+      let   buffer  = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();  // last incomplete line stays in buffer
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let event;
+          try { event = JSON.parse(line.slice(6)); } catch { continue; }
+
+          if (event.type === 'transcript') {
+            addBubble(event.text, 'user');
+
+          } else if (event.type === 'sentence') {
+            // Accumulate text into a single agent bubble
+            agentFullText += (agentFullText ? ' ' : '') + event.text;
+            if (!agentBubble) {
+              agentBubble = addBubble(event.text, 'agent');
+            } else {
+              agentBubble.textContent = agentFullText;
+              document.getElementById('transcript').scrollTop = 99999;
+            }
+            // Start speaking viz on first sentence
+            if (audioQueue.length === 0 && !queuePlaying) {
+              cancelAnimationFrame(vizAnimId);
+              vizMode = 'speaking';
+              showIdle(false);
+              drawSpeaking();
+              setMicState('speaking');
+              setStatus('active', 'Speaking…');
+            }
+            // Enqueue — plays as soon as available
+            enqueueAudio(event.audio_url);
+
+          } else if (event.type === 'error') {
+            showToast('⚠️ ' + event.text);
+
+          } else if (event.type === 'done') {
+            // Wait for queue to drain then resume VAD
+            if (queuePlaying || audioQueue.length > 0) {
+              queueDoneCallback = () => {
+                afterAgentDone();
+              };
+            } else {
+              afterAgentDone();
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('SSE stream error:', err);
+      showToast('Network error. Please try again.');
+      afterAgentDone();
+    }
+  }
+
+  function afterAgentDone() {
+    stopViz();
+    showIdle(true);
+    setIdleLabel('Speak anytime…');
+    if (callActive) {
+      setMicState('idle');  // VAD controls recording, hide manual mic
+      resumeVAD();
+    }
   }
 
   /* ═══════════════════════════════════════════════
@@ -781,27 +1123,35 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Start failed');
 
-      sessionId   = data.session_id;
-      callActive  = true;
-
+      sessionId  = data.session_id;
+      callActive = true;
       document.getElementById('end-btn').disabled = false;
-      setStatus('active', 'Connected');
-      setMicState('ready');
-      setIdleLabel('Tap mic to speak');
-      showIdle(true);
 
       if (data.greeting_audio_url) {
         vizMode = 'speaking';
         showIdle(false);
         drawSpeaking();
-        setMicState('speaking');
-        setStatus('active', 'Speaking… (tap 🎙 to interrupt)');
+        setStatus('active', 'Speaking…');
+        if (!useVAD) {
+          setMicState('speaking');
+          setStatus('active', 'Speaking… (tap 🎙 to interrupt)');
+        }
         await playAudio(data.greeting_audio_url);
-        stopViz();
-        showIdle(true);
+        stopViz(); showIdle(true);
       }
 
       addBubble('Hello, this is Institute of Space Technology. How can I help you today?', 'agent');
+
+      if (useVAD) {
+        // Hide manual mic — VAD takes over
+        setMicState('idle');
+        await startVAD();
+      } else {
+        setMicState('ready');
+        setIdleLabel('Tap mic to speak');
+        setStatus('active', 'Connected');
+        showIdle(true);
+      }
 
     } catch (err) {
       console.error('startCall error:', err);
@@ -814,57 +1164,15 @@
   }
 
   /* ═══════════════════════════════════════════════
-     AUDIO PLAYBACK (cross-platform)
-  ═══════════════════════════════════════════════ */
-  function playAudio(url) {
-    return new Promise((resolve) => {
-      const audio = new Audio();
-      audio.preload = 'auto';
-      currentAudio = audio;   // expose so mic button can interrupt
-
-      if (isIOS) {
-        audio.setAttribute('playsinline', 'true');
-        audio.setAttribute('webkit-playsinline', 'true');
-      }
-
-      audio.onended  = () => { currentAudio = null; resolve(); };
-      audio.onerror  = (e) => { console.warn('Audio playback error:', e); currentAudio = null; resolve(); };
-      audio.oncanplaythrough = () => {
-        audio.play().catch(e => {
-          console.warn('audio.play() rejected:', e);
-          currentAudio = null; resolve();
-        });
-      };
-
-      audio.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
-    });
-  }
-
-  /* Interrupt currently playing agent audio */
-  function interruptAudio() {
-    if (currentAudio) {
-      currentAudio.onended = null;
-      currentAudio.onerror = null;
-      currentAudio.pause();
-      currentAudio.src = '';
-      currentAudio = null;
-    }
-  }
-
-  /* ═══════════════════════════════════════════════
-     RECORDING
+     iOS MANUAL RECORDING  (unchanged)
   ═══════════════════════════════════════════════ */
   document.getElementById('mic-btn').addEventListener('click', () => {
     if (!callActive) return;
+    if (useVAD) return;  // VAD mode — button does nothing (hidden effectively)
     if (isRecording) {
       stopRecording();
     } else {
-      // If agent is speaking, interrupt it first then start recording
-      if (currentAudio) {
-        interruptAudio();
-        stopViz();
-        showToast('Interrupted — speak your question');
-      }
+      if (currentAudio) { interruptAudio(); stopViz(); showToast('Interrupted — speak your question'); }
       startRecording();
     }
   });
@@ -873,34 +1181,22 @@
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       mimeType = detectMimeType();
-
       document.getElementById('chip-codec').textContent =
         'Codec: ' + (mimeType ? mimeType.split('/')[1].split(';')[0].toUpperCase() : 'default');
-
-      const options = mimeType ? { mimeType } : {};
+      const options  = mimeType ? { mimeType } : {};
       mediaRecorder  = new MediaRecorder(stream, options);
       recordingChunks = [];
-
-      mediaRecorder.ondataavailable = e => {
-        if (e.data && e.data.size > 0) recordingChunks.push(e.data);
-      };
-      mediaRecorder.onstop = handleRecordingStop;
-
-      mediaRecorder.start(isIOS ? 1000 : 250); // iOS needs larger timeslice
+      mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) recordingChunks.push(e.data); };
+      mediaRecorder.onstop = handleRecordingStop_iOS;
+      mediaRecorder.start(1000);
       isRecording = true;
-
       setMicState('recording');
       setStatus('recording', 'Recording…');
       showIdle(false);
       startVizRecording(stream);
-
     } catch (err) {
-      console.error('Mic error:', err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        showToast('🎙 Microphone permission denied');
-      } else {
-        showToast('🎙 Could not access microphone');
-      }
+      if (err.name === 'NotAllowedError') showToast('🎙 Microphone permission denied');
+      else showToast('🎙 Could not access microphone');
     }
   }
 
@@ -912,22 +1208,16 @@
     cancelAnimationFrame(vizAnimId);
   }
 
-  async function handleRecordingStop() {
-    setMicState('thinking');
-    setStatus('thinking', 'Thinking…');
-    vizMode = 'thinking';
-    showIdle(false);
-    drawThinking();
+  async function handleRecordingStop_iOS() {
+    setMicState('thinking'); setStatus('thinking', 'Thinking…');
+    vizMode = 'thinking'; showIdle(false); drawThinking();
 
     const ext  = mimeToExt(mimeType);
     const blob = new Blob(recordingChunks, { type: mimeType || 'audio/webm' });
 
     if (blob.size < 500) {
       showToast('Recording too short — please try again');
-      stopViz(); showIdle(true);
-      setMicState('ready');
-      setStatus('active', 'Connected');
-      return;
+      stopViz(); showIdle(true); setMicState('ready'); setStatus('active', 'Connected'); return;
     }
 
     const form = new FormData();
@@ -939,34 +1229,22 @@
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        const msg = data.error || 'Server error';
-        showToast('⚠️ ' + msg);
-        stopViz(); showIdle(true);
-        setMicState('ready');
-        setStatus('active', 'Connected');
-        return;
+        showToast('⚠️ ' + (data.error || 'Server error'));
+        stopViz(); showIdle(true); setMicState('ready'); setStatus('active', 'Connected'); return;
       }
 
       if (data.user_text) addBubble(data.user_text, 'user');
       if (data.response)  addBubble(data.response,  'agent');
 
       if (data.audio_url) {
-        stopViz();
-        vizMode = 'speaking';
-        showIdle(false);
-        drawSpeaking();
-        setMicState('speaking');
-        setStatus('active', 'Speaking… (tap 🎙 to interrupt)');
+        stopViz(); vizMode = 'speaking'; showIdle(false); drawSpeaking();
+        setMicState('speaking'); setStatus('active', 'Speaking… (tap 🎙 to interrupt)');
         await playAudio(data.audio_url);
       }
-
     } catch (err) {
-      console.error('Query error:', err);
       showToast('Network error. Please try again.');
     } finally {
-      stopViz();
-      showIdle(true);
-      setIdleLabel('Tap mic to speak');
+      stopViz(); showIdle(true); setIdleLabel('Tap mic to speak');
       if (callActive) { setMicState('ready'); setStatus('active', 'Connected'); }
     }
   }
@@ -976,25 +1254,19 @@
   ═══════════════════════════════════════════════ */
   async function endCall() {
     if (!callActive) return;
-    if (isRecording) stopRecording();
     callActive = false;
-
+    clearQueue();
+    if (useVAD) stopVAD(); else if (isRecording) stopRecording();
     document.getElementById('start-btn').disabled = false;
     document.getElementById('end-btn').disabled   = true;
-    setMicState('idle');
-    setStatus('idle', 'Offline');
-    stopViz();
-    showIdle(true);
-    setIdleLabel('Tap to start');
-
+    setMicState('idle'); setStatus('idle', 'Offline');
+    stopViz(); showIdle(true); setIdleLabel('Tap to start');
     try {
       await fetch('/api/end_call', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessionId })
       });
-    } catch (_) { /* silent */ }
-
+    } catch (_) {}
     sessionId = null;
     showToast('Call ended. Thank you!');
   }
@@ -1003,11 +1275,14 @@
      INIT
   ═══════════════════════════════════════════════ */
   window.addEventListener('load', () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
       showToast('⚠️ Your browser does not support audio recording');
-    }
     setStatus('idle', 'Offline');
     setIdleLabel('Tap to start');
+    if (useVAD) {
+      // Hide mic button on Android/Desktop — VAD is automatic
+      document.getElementById('mic-wrap').style.display = 'none';
+    }
     drawIdleViz();
   });
   </script>
