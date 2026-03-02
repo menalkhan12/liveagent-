@@ -10,3 +10,4 @@ livekit-protocol==0.5.0
 gunicorn==21.2.0
 Werkzeug==2.3.7
 gevent
+requests==2.31.0
