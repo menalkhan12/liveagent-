@@ -502,11 +502,19 @@
   let vadActive=false, vadSpeaking=false, vadPaused=false;
   let vadSilenceTimer=null, vadSpeakTimer=null, vadAnimFrame=null;
   let vadSpeechStart=0;
+  let agentSpeaking   = false;  // true while agent audio is playing
+  let requestInFlight = false;  // true while processing a user query
 
-  const VAD_SPEECH_THRESHOLD  = 0.010;
-  const VAD_SPEECH_CONFIRM_MS = 250;
-  const VAD_SILENCE_MS        = 1300;
-  const VAD_MIN_SPEECH_MS     = 400;
+  // Normal listening — rejects typing, doors, distant background voices
+  const VAD_THRESHOLD_NORMAL   = 0.018;
+  const VAD_CONFIRM_NORMAL_MS  = 350;
+
+  // Barge-in mode — stricter, needs deliberate close voice to interrupt agent
+  const VAD_THRESHOLD_BARGEIN  = 0.030;
+  const VAD_CONFIRM_BARGEIN_MS = 500;
+
+  const VAD_SILENCE_MS         = 1300;
+  const VAD_MIN_SPEECH_MS      = 500;  // clips shorter than this are noise, ignored
 
   function getRMS(data) {
     let s=0;
@@ -562,19 +570,31 @@
     const data = new Uint8Array(vadAnalyser.fftSize);
     vadAnalyser.getByteTimeDomainData(data);
     const rms = getRMS(data);
-    if (!vadPaused) {
+
+    // Pick thresholds based on whether agent is currently speaking
+    const threshold  = agentSpeaking ? VAD_THRESHOLD_BARGEIN  : VAD_THRESHOLD_NORMAL;
+    const confirmMs  = agentSpeaking ? VAD_CONFIRM_BARGEIN_MS : VAD_CONFIRM_NORMAL_MS;
+
+    // Don't listen while processing a request (but DO listen during agent speech for barge-in)
+    if (!vadPaused && !requestInFlight) {
       if (!vadSpeaking) {
-        if (rms > VAD_SPEECH_THRESHOLD) {
+        if (rms > threshold) {
           if (!vadSpeakTimer) {
             vadSpeakTimer = setTimeout(() => {
               vadSpeakTimer = null;
-              if (vadPaused || !vadActive) return;
+              if (vadPaused || !vadActive || requestInFlight) return;
+              // BARGE-IN: if agent is speaking, stop it immediately
+              if (agentSpeaking) {
+                clearQueue();        // stop all queued audio
+                agentSpeaking = false;
+                queueDoneCallback = null;
+              }
               vadStartCapture();
-            }, VAD_SPEECH_CONFIRM_MS);
+            }, confirmMs);
           }
         } else { clearTimeout(vadSpeakTimer); vadSpeakTimer=null; }
       } else {
-        if (rms < VAD_SPEECH_THRESHOLD) {
+        if (rms < threshold) {
           if (!vadSilenceTimer) {
             vadSilenceTimer = setTimeout(() => {
               vadSilenceTimer=null;
@@ -584,7 +604,11 @@
           }
         } else { clearTimeout(vadSilenceTimer); vadSilenceTimer=null; }
       }
+    } else if (requestInFlight) {
+      // Clear any pending speak timer so we don't fire after request completes
+      clearTimeout(vadSpeakTimer); vadSpeakTimer=null;
     }
+
     vadAnimFrame = requestAnimationFrame(vadLoop);
   }
 
@@ -614,13 +638,16 @@
       if (!vadPaused&&callActive) resumeVAD();
       return;
     }
+    // Pause VAD while processing — we don't want to pick up our own question again
     pauseVAD();
+    requestInFlight = true;
     setStatus('thinking', 'Processing…');
     showStatusMsg('Thinking…');
     const ext  = mimeToExt(mimeType);
     const blob = new Blob(vadChunks, {type: mimeType||'audio/webm'});
     if (blob.size < 500) {
       showToast('Audio too short, try again');
+      requestInFlight = false;
       if (callActive) resumeVAD();
       return;
     }
@@ -659,7 +686,7 @@
           if (event.type === 'transcript') {
             removeStatusMsg();
             addBubble(event.text, 'user');
-            showStatusMsg('Speak your next question…');
+            showStatusMsg('Processing response…');
 
           } else if (event.type === 'sentence') {
             agentFullText += (agentFullText ? ' ' : '') + event.text;
@@ -670,7 +697,10 @@
               agentBubble.textContent = '🤖 ' + agentFullText;
               document.getElementById('transcript').scrollTop = 99999;
             }
-            setStatus('active', 'Speaking…');
+            // Mark agent as speaking — VAD now uses barge-in thresholds
+            agentSpeaking = true;
+            requestInFlight = false;  // allow barge-in detection
+            setStatus('active', 'Speaking… (speak to interrupt)');
             enqueueAudio(event.audio_url);
 
           } else if (event.type === 'error') {
@@ -692,6 +722,8 @@
   }
 
   function afterAgentDone() {
+    agentSpeaking   = false;
+    requestInFlight = false;
     removeStatusMsg();
     if (callActive) {
       resumeVAD();
@@ -714,17 +746,23 @@
       sessionId=data.session_id; callActive=true;
       document.getElementById('end-btn').disabled = false;
 
+      if (useVAD) {
+        document.getElementById('mic-wrap').style.display = 'none';
+        await startVAD();  // start VAD first so barge-in works during greeting
+      }
+
       if (data.greeting_audio_url) {
-        setStatus('active', 'Speaking…');
+        agentSpeaking = true;
+        setStatus('active', 'Speaking… (speak to interrupt)');
         await playAudio(data.greeting_audio_url);
+        agentSpeaking = false;
       }
 
       addBubble('Hello, this is Institute of Space Technology. How can I help you today?', 'agent');
 
       if (useVAD) {
-        document.getElementById('mic-wrap').style.display = 'none';
         showStatusMsg('Speak your next question…');
-        await startVAD();
+        setStatus('active', 'Listening — speak your question');
       } else {
         // iOS: show mic button
         document.getElementById('mic-wrap').style.display = 'flex';
@@ -824,6 +862,7 @@
   async function endCall() {
     if (!callActive) return;
     callActive=false; clearQueue();
+    agentSpeaking=false; requestInFlight=false;
     if (useVAD) stopVAD(); else if (isRecording) stopRecording();
     document.getElementById('start-btn').disabled = false;
     document.getElementById('end-btn').disabled   = true;
