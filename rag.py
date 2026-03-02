@@ -1,5 +1,4 @@
 import os
-import re
 import json
 import logging
 from pathlib import Path
@@ -87,10 +86,8 @@ KEYWORD_FILE_MAP = [
       "other country", "from abroad"],
      ["FOREIGN_ADMISSION.txt"]),
 
-    (["scholarship", "financial aid", "need based", "honhaar", "peef", "fee waiver",
-      "merit based scholarship", "merit scholarship"],
-     ["ADMISSION_FAQS_COMPLETE.txt", "TRANSPORT_HOSTEL_FAQS.txt",
-      "IST_FULL_WEBSITE_MANUAL.txt", "ADMISSION_INFO.txt"]),
+    (["scholarship", "financial aid", "need based", "honhaar", "peef", "fee waiver"],
+     ["ADMISSION_FAQS_COMPLETE.txt", "TRANSPORT_HOSTEL_FAQS.txt"]),
 
     (["challan", "fee submission", "last date to submit fee", "submit fee",
       "fee deadline", "challan deadline"],
@@ -114,6 +111,12 @@ KEYWORD_FILE_MAP = [
       "ist history", "ist location", "where is ist", "islamabad highway",
       "ist accredited", "ist university", "space technology university"],
      ["03_ABOUT.txt", "IST_FULL_WEBSITE_MANUAL.txt"]),
+
+    # Faculty / people / professors
+    (["faculty", "professor", "dr.", "doctor", "lecturer", "hod", "head of department",
+      "who is", "founder", "rector", "vice chancellor", "principal", "staff",
+      "teacher", "instructor", "phd supervisor", "supervisor"],
+     ["07_FACULTY.txt", "IST_FULL_WEBSITE_MANUAL.txt", "03_ABOUT.txt"]),
 
     # MS / PhD
     (["ms program", "ms programs", "ms degree", "phd program", "phd degree",
@@ -220,24 +223,35 @@ def _fix_stt_errors(text):
 
 
 def _is_end_call(q):
-    return any(p in q for p in [
+    # Exact phrase matches
+    exact = [
         "end the call", "end call", "goodbye", "bye bye", "hang up",
         "stop the call", "that's all", "thats all", "no more questions",
-        "nothing else", "i'm done", "im done", "ok bye", "okay bye"
-    ])
+        "nothing else", "i'm done", "im done", "ok bye", "okay bye",
+        "thank you bye", "thanks bye", "bye for now", "that will be all",
+        "that is all", "no questions", "no further questions",
+        "i am done", "we are done", "all done", "good bye",
+        "have a good day", "have a nice day", "take care",
+        "disconnect", "close the call", "finish the call",
+        "end this call", "stop call",
+    ]
+    if any(p in q for p in exact):
+        return True
+
+    # Short utterances that are almost certainly goodbye
+    # e.g. just "bye", "goodbye", "thanks bye"
+    words = q.strip().split()
+    if len(words) <= 3 and any(w in ["bye", "goodbye", "ciao", "done", "finished"] for w in words):
+        return True
+
+    return False
 
 
 def _is_thanks_or_compliment(query):
     q = query.lower().strip()
-    # Remove common filler before checking
-    q_clean = re.sub(r'\b(thank you|thanks|thx|ok thanks|okay thanks|thank)\b[.,!?]?\s*', '', q).strip()
     thanks = any(x in q for x in ["thank", "thanks", "thx", "ok thanks", "okay thanks"])
     compliment = any(x in q for x in ["you're good", "youre good", "great job", "well done",
                                        "you're helpful", "youre helpful", "good job", "awesome"])
-    # If there's still a real question after removing thanks phrases, don't short-circuit
-    has_question = bool(q_clean) and len(q_clean) > 4
-    if has_question:
-        return False, False
     return thanks, compliment
 
 
@@ -352,10 +366,20 @@ def generate_answer(query, conversation_history=None):
 
     context = retrieve_context(retrieval_query)
 
-    if not context.strip():
+    # Escalate if context is empty or too weak to be relevant
+    if not context.strip() or len(context.strip()) < 200:
+        logger.info(f"Context too weak ({len(context.strip())} chars) — escalating")
         return ("I don't have that information. Please provide your phone number and we will contact you.", True)
 
     system_prompt = f"""You are the official voice assistant for Institute of Space Technology (IST). You answer callers by phone.
+
+CRITICAL RULES — FOLLOW EXACTLY:
+1. You can ONLY use information that appears directly in the CONTEXT section below.
+2. If the answer is not clearly and explicitly present in CONTEXT, reply EXACTLY with this sentence and nothing else:
+   "I don't have that information. Please provide your phone number and we will contact you."
+3. Never explain, never apologize, never say "I'm not sure", never add general knowledge, never say "check website".
+4. Never answer questions about topics not in CONTEXT (planets, general science, history, etc.) — use the exact escalation sentence.
+5. Keep answers to maximum 2 very short sentences. Be concise for phone.
 
 AUTHORITATIVE PROGRAMS BY DEPARTMENT:
 - Aeronautics and Astronautics: BS Aerospace Engineering only
@@ -369,15 +393,11 @@ AUTHORITATIVE PROGRAMS BY DEPARTMENT:
 - MS programs: Aerospace, Electrical, Materials, Mechanical, Computer Science, Mathematics, Physics, Astronomy
 - PhD programs: Aerospace, Electrical, Materials, Mathematics, Physics, Astronomy
 
-RULES:
-1. Answer ONLY from CONTEXT. NEVER invent. NEVER say "check the website".
-2. Keep response to MAX 2 short sentences. Be concise for phone conversation.
-3. DIPLOMA: IST does NOT offer diplomas. IST accepts DAE holders as applicants only.
-4. RESEARCH LABS: IST has Space Systems Lab, Astronomy Resource Center (16-inch telescope), NCFA (failure analysis), NCRS&GI (remote sensing). Answer from CONTEXT.
-5. FEE: Use lakh and thousand format. Give specific program fee when asked.
-6. CLOSING MERIT: Last year = 2024. Give number directly.
-7. STAY ON TOPIC: Only answer what the user specifically asked. Do NOT volunteer unrelated information from context (e.g. if asked about scholarships, do NOT mention closing merit numbers).
-8. If truly not in CONTEXT: "I don't have that information. Please provide your phone number and we will contact you."
+ADDITIONAL RULES:
+- DIPLOMA: IST does NOT offer diplomas. IST accepts DAE holders as applicants only.
+- FEE: Use lakh and thousand format. Give specific program fee when asked.
+- CLOSING MERIT: Last year = 2024. Give number directly.
+- STAY ON TOPIC: Only answer what the user specifically asked. Do not volunteer unrelated info.
 
 CONTEXT:
 {context}"""
@@ -393,7 +413,7 @@ CONTEXT:
                         {"role": "user", "content": user_message}
                     ],
                     temperature=0.1,
-                    max_tokens=120  # Short = faster TTS + better iOS playback
+                    max_tokens=200
                 )
                 reply = response.choices[0].message.content
                 if not reply or not reply.strip():

@@ -301,7 +301,7 @@ def query_stream():
         try:
             stripped = user_text.strip() if user_text else ""
 
-            # Reject empty, too-short, or hallucinated STT noise
+            # Reject empty or too-short transcripts
             NOISE_PHRASES = {
                 "thank you", "thanks", "you're welcome", "ok", "okay",
                 "yes", "no", "hmm", "uh", "um", "uh huh", "mm hmm",
@@ -313,13 +313,39 @@ def query_stream():
             if stripped.lower().rstrip(".!?,") in NOISE_PHRASES:
                 yield _sse({"type": "ignored"})
                 return
-            # If transcript is only repeated short words (e.g. "Thank you. Thank you. Thank you.")
-            words = stripped.lower().split()
-            if len(words) <= 6 and len(set(words)) <= 3 and not any(
-                c.isalpha() for c in stripped if c not in " .,!?"
-            ):
-                # allow it through — might be legit short query
-                pass
+
+            lower = stripped.lower()
+
+            # Fix 4: Detect end call BEFORE sending to RAG
+            from rag import _is_end_call
+            if _is_end_call(lower):
+                reply = "Thank you for calling IST. Have a great day! Goodbye."
+                audio_url = generate_tts(reply, session_id)
+                end_call_record(session_id)
+                yield _sse({"type": "end_call", "text": reply, "audio_url": audio_url})
+                return
+
+            # Fix 3: Block off-topic STT hallucinations
+            # These are phrases Whisper hallucinates that are clearly NOT IST admission queries
+            OFF_TOPIC_TRIGGERS = [
+                "terrestrial", "relationship between", "solar system", "milky way",
+                "planet earth", "mars", "jupiter", "saturn", "black hole",
+                "nasa", "spacex", "elon musk", "quantum physics",
+                "theory of relativity", "big bang", "evolution",
+                "world war", "history of", "recipe", "cook",
+            ]
+            IST_KEYWORDS = [
+                "ist", "admission", "fee", "merit", "scholarship", "hostel",
+                "transport", "program", "department", "engineering", "aerospace",
+                "electrical", "computer", "avionics", "mechanical", "mathematics",
+                "physics", "biotechnology", "apply", "eligibility", "entry test",
+            ]
+            is_off_topic = any(t in lower for t in OFF_TOPIC_TRIGGERS)
+            has_ist_context = any(k in lower for k in IST_KEYWORDS)
+            if is_off_topic and not has_ist_context:
+                logger.warning(f"[stream] Off-topic/hallucinated STT blocked: '{stripped}'")
+                yield _sse({"type": "ignored"})
+                return
 
             yield _sse({"type": "transcript", "text": user_text})
 
@@ -370,17 +396,7 @@ def not_found(error):
 def internal_error(error):
     logger.error(f"Internal error: {error}")
     return jsonify({"error": "Internal server error"}), 500
-import threading, requests, time
 
-def keep_alive():
-    while True:
-        try:
-            requests.get("https://liveagent-e6ow.onrender.com/health")
-        except:
-            pass
-        time.sleep(240)
-
-threading.Thread(target=keep_alive, daemon=True).start()
 
 if __name__ == "__main__":
     app.run(debug=os.getenv("FLASK_ENV") == "development")
