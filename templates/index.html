@@ -1,614 +1,855 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="format-detection" content="telephone=no">
-    <meta name="theme-color" content="#0f172a">
-    <title>IST Voice Assistant | Institute of Space Technology</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
-            --bg-dark: #0f172a; --bg-card: #1e293b; --bg-elevated: #334155;
-            --accent: #38bdf8; --success: #34d399; --danger: #f87171;
-            --text: #f1f5f9; --text-muted: #94a3b8; --border: rgba(255,255,255,0.08);
-        }
-        body {
-            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-            background: var(--bg-dark);
-            background-image:
-                radial-gradient(ellipse 80% 50% at 50% 0%, rgba(56,189,248,0.15), transparent),
-                radial-gradient(ellipse 60% 40% at 100% 100%, rgba(34,211,238,0.08), transparent);
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
-                     max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
-            color: var(--text);
-        }
-        .container {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 24px; padding: 40px; max-width: 560px; width: 100%;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-        }
-        @media (max-width: 480px) { .container { padding: 24px 20px; } h1 { font-size: 20px !important; } }
-        .header { text-align: center; margin-bottom: 28px; }
-        .logo {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 64px; height: 64px;
-            background: linear-gradient(135deg, var(--accent), #0ea5e9);
-            border-radius: 16px; font-size: 28px; margin-bottom: 16px;
-            box-shadow: 0 8px 24px rgba(56,189,248,0.3);
-        }
-        h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.02em; }
-        .subtitle { font-size: 14px; color: var(--text-muted); font-weight: 500; }
-        .status {
-            padding: 14px 18px; background: var(--bg-elevated);
-            border-radius: 14px; border: 1px solid var(--border);
-            color: var(--success); font-size: 14px; font-weight: 500;
-            margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
-            transition: color 0.2s, border-color 0.2s;
-        }
-        .status.active   { color: var(--accent);  border-color: rgba(56,189,248,0.3); }
-        .status.speaking { color: #a78bfa;         border-color: rgba(167,139,250,0.3); }
-        .status.heard    { color: #fbbf24;         border-color: rgba(251,191,36,0.3); }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-        .status.active   .status-dot { animation: pulse 1.2s ease-in-out infinite; }
-        .status.speaking .status-dot { animation: pulse 0.7s ease-in-out infinite; }
-        .status.heard    .status-dot { animation: pulse 0.4s ease-in-out infinite; }
-        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(1.35)} }
-        .button-group { display: flex; gap: 12px; margin-bottom: 14px; }
-        button {
-            flex: 1; padding: 16px 20px; min-height: 52px;
-            font-size: 15px; font-weight: 600; font-family: inherit;
-            border: none; border-radius: 14px; cursor: pointer;
-            transition: all 0.15s ease; -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation; user-select: none; -webkit-user-select: none;
-        }
-        #startBtn { background: linear-gradient(135deg, var(--success), #10b981); color: #fff; box-shadow: 0 4px 14px rgba(52,211,153,0.35); }
-        #startBtn:active:not(:disabled) { transform: scale(0.97); }
-        #startBtn:disabled { background: var(--bg-elevated); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
-        #endBtn { background: linear-gradient(135deg, var(--danger), #ef4444); color: #fff; box-shadow: 0 4px 14px rgba(248,113,113,0.25); }
-        #endBtn:active:not(:disabled) { transform: scale(0.97); }
-        #endBtn:disabled { background: var(--bg-elevated); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
-        #recordBtn {
-            display: none; width: 100%; padding: 20px; min-height: 60px;
-            font-size: 17px; font-weight: 700; font-family: inherit;
-            border: none; border-radius: 14px; cursor: pointer;
-            -webkit-tap-highlight-color: transparent; touch-action: none;
-            margin-bottom: 14px;
-            background: linear-gradient(135deg, var(--accent), #0ea5e9);
-            color: #fff; box-shadow: 0 4px 14px rgba(56,189,248,0.4);
-            transition: all 0.12s ease;
-        }
-        #recordBtn.active { background: linear-gradient(135deg,var(--danger),#ef4444); box-shadow: 0 6px 24px rgba(248,113,113,0.55); transform: scale(1.03); }
-        .transcript {
-            background: var(--bg-dark); border: 1px solid var(--border);
-            border-radius: 16px; padding: 18px;
-            min-height: 200px; max-height: 340px;
-            overflow-y: auto; -webkit-overflow-scrolling: touch;
-        }
-        .message { margin: 10px 0; padding: 12px 14px; border-radius: 12px; font-size: 14px; line-height: 1.6; }
-        .user-msg  { background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.2); margin-left: 20px; }
-        .agent-msg { background: rgba(52,211,153,0.10); border: 1px solid rgba(52,211,153,0.15); margin-right: 20px; }
-        .loading { color: var(--text-muted); font-size: 13px; font-style: italic; }
-        .spinner {
-            display: inline-block; width: 13px; height: 13px;
-            border: 2px solid var(--bg-elevated); border-top-color: var(--accent);
-            border-radius: 50%; animation: spin 0.7s linear infinite;
-            margin-right: 7px; vertical-align: middle;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .mode-hint { text-align: center; font-size: 12px; color: var(--text-muted); margin-bottom: 10px; min-height: 16px; }
-        .info { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 18px; font-size: 12px; color: var(--text-muted); }
-        .info span { display: flex; align-items: center; gap: 5px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1b2e" />
+  <title>IST Voice Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:        #0d1b2e;
+      --bg2:       #112240;
+      --card:      #162035;
+      --border:    rgba(255,255,255,0.08);
+      --blue:      #3b82f6;
+      --green:     #10b981;
+      --red:       #ef4444;
+      --text:      #e2eaf7;
+      --muted:     #8899b4;
+      --agent-bg:  #1a2d4a;
+      --user-bg:   #1e3a5f;
+      --radius:    14px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Shell ── */
+    .shell {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px env(safe-area-inset-bottom, 16px);
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    /* ── Hero header ── */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      text-align: center;
+    }
+    .mic-icon-box {
+      width: 72px; height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 34px;
+      box-shadow: 0 8px 32px rgba(59,130,246,0.35);
+      flex-shrink: 0;
+    }
+    .hero h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+    .hero p {
+      font-size: 15px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    /* ── Status bar ── */
+    .status-bar {
+      width: 100%;
+      padding: 14px 20px;
+      border-radius: var(--radius);
+      background: var(--card);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      font-size: 15px;
+      font-weight: 500;
+      min-height: 52px;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .status-dot.offline  { background: var(--muted); }
+    .status-dot.active   { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.8s infinite; }
+    .status-dot.recording{ background: var(--red);   box-shadow: 0 0 8px var(--red);   animation: pulse 0.9s infinite; }
+    .status-dot.thinking { background: #a78bfa;      box-shadow: 0 0 8px #a78bfa;      animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    #status-text { color: var(--green); }
+    #status-text.offline { color: var(--muted); }
+
+    /* ── Button row ── */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    .btn {
+      flex: 1;
+      padding: 16px;
+      border-radius: var(--radius);
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.18s;
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px;
+      touch-action: manipulation;
+      letter-spacing: 0.01em;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn.start {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(16,185,129,0.35);
+    }
+    .btn.start:hover { background: linear-gradient(135deg, #34d399, #10b981); }
+    .btn.end {
+      background: linear-gradient(135deg, rgba(239,68,68,0.22), rgba(185,28,28,0.15));
+      color: #fca5a5;
+      border: 1px solid rgba(239,68,68,0.45);
+    }
+    .btn.end:hover:not(:disabled) { background: linear-gradient(135deg, rgba(239,68,68,0.38), rgba(185,28,28,0.28)); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+    /* ── iOS mic button (shown only on iOS after call starts) ── */
+    .mic-wrap {
+      width: 100%;
+      display: none;  /* hidden by default, shown on iOS */
+      justify-content: center;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .mic-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid var(--blue);
+      opacity: 0;
+    }
+    .mic-ring.r1 { width: 88px; height: 88px; }
+    .mic-ring.r2 { width: 110px; height: 110px; }
+    .recording .mic-ring { animation: ringPulse 1.4s ease-out infinite; }
+    .recording .mic-ring.r2 { animation-delay: 0.4s; }
+    @keyframes ringPulse {
+      0%   { opacity: 0.7; transform: scale(0.85); }
+      100% { opacity: 0;   transform: scale(1.1); }
+    }
+    #mic-btn {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #1d4ed8, #2563eb);
+      box-shadow: 0 4px 24px rgba(37,99,235,0.5);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      position: relative;
+      z-index: 1;
+      transition: transform 0.15s, background 0.2s;
+      touch-action: manipulation;
+    }
+    #mic-btn:active { transform: scale(0.92); }
+    #mic-btn.recording {
+      background: linear-gradient(135deg, #991b1b, #dc2626);
+      box-shadow: 0 4px 24px rgba(220,38,38,0.55);
+    }
+    #mic-btn.disabled {
+      background: #1e293b;
+      box-shadow: none;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    /* ── Chat area ── */
+    .chat-box {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      min-height: 220px;
+      max-height: 420px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+    .chat-box::-webkit-scrollbar { width: 5px; }
+    .chat-box::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+    /* Bubbles */
+    .msg {
+      max-width: 88%;
+      padding: 11px 15px;
+      border-radius: 12px;
+      font-size: 15px;
+      line-height: 1.55;
+      animation: fadeUp 0.3s ease forwards;
+      opacity: 0;
+    }
+    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } from { opacity:0; transform: translateY(6px); } }
+    .msg.agent {
+      align-self: flex-start;
+      background: var(--agent-bg);
+      color: #d4eaff;
+      border: 1px solid rgba(59,130,246,0.15);
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: var(--user-bg);
+      color: #c7e0ff;
+      border: 1px solid rgba(59,130,246,0.2);
+    }
+    .msg-status {
+      align-self: flex-start;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      font-style: italic;
+      padding: 4px 2px;
+    }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: #a78bfa;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .placeholder {
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+      padding: 24px 0;
+      font-style: italic;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: calc(env(safe-area-inset-bottom,16px) + 16px);
+      left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: #1e293b;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text);
+      font-size: 13px;
+      padding: 10px 22px;
+      border-radius: 99px;
+      z-index: 200;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
+      opacity: 0;
+      pointer-events: none;
+      max-width: 90vw;
+      text-align: center;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* ── Info chips ── */
+    .info-strip {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+      width: 100%;
+    }
+    .chip {
+      font-size: 11px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      letter-spacing: 0.04em;
+    }
+
+    @media (max-width: 400px) {
+      .hero h1 { font-size: 22px; }
+      .btn { font-size: 15px; padding: 14px; }
+    }
+  </style>
 </head>
+
 <body>
-<div class="container">
-    <div class="header">
-        <div class="logo">🎙️</div>
-        <h1>Institute of Space Technology</h1>
-        <p class="subtitle">Voice Assistant — Ask anything about admissions</p>
-    </div>
-    <div class="status" id="statusDiv">
-        <span class="status-dot"></span>
-        <span id="statusText"><strong>Ready</strong> — Click Start to begin</span>
-    </div>
-    <div class="button-group">
-        <button id="startBtn" onclick="startCall()">▶ Start Call</button>
-        <button id="endBtn" onclick="endCall()" disabled>■ End Call</button>
-    </div>
-    <button id="recordBtn">🎤 Hold to Speak</button>
-    <div class="mode-hint" id="modeHint"></div>
-    <div class="transcript" id="transcript">
-        <p class="loading">Click "Start Call" to speak with the IST voice assistant.</p>
-        <div id="transcriptStatus"></div>
-    </div>
-    <div class="info">
-        <span>🧠 IST Knowledge Base</span>
-        <span>🎯 Smart VAD</span>
-        <span>🔊 Natural Voice</span>
-    </div>
-</div>
+  <div class="shell">
 
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/bundle.min.js"></script>
-<script>
-// ═══════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════
-let sessionId        = null;
-let isCallActive     = false;
-let stream           = null;
-let vadInstance      = null;
-let currentAudio     = null;
-let requestInFlight  = false;
-let agentSpeaking    = false;   // true ONLY while TTS audio is playing
-let vadReady         = false;   // VAD initialized ok
-let useManualMode    = false;
-let mediaRecorder    = null;
-let recChunks        = [];
-let isRecording      = false;
-let audioCtx         = null;
-let vadCooldownTimer = null;    // prevents speaker-bleed false trigger after TTS ends
+    <!-- Hero -->
+    <div class="hero">
+      <div class="mic-icon-box">🎙</div>
+      <h1>Institute of Space Technology</h1>
+      <p>Voice Assistant — Ask anything about admissions</p>
+    </div>
 
-const isIOS     = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-const isAndroid = /Android/.test(navigator.userAgent);
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="status-dot offline" id="status-dot"></span>
+      <span id="status-text" class="offline">Offline — Click Start to begin</span>
+    </div>
 
-// ════════════════════════════════════════
-// WAV ENCODER  (VAD outputs Float32 16kHz)
-// ════════════════════════════════════════
-function encodeWAV(samples, sr) {
-    const ds = samples.length * 2;
-    const buf = new ArrayBuffer(44 + ds);
-    const v = new DataView(buf);
-    const ws = (o, s) => { for (let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
-    ws(0,'RIFF'); v.setUint32(4,36+ds,true); ws(8,'WAVE'); ws(12,'fmt ');
-    v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
-    v.setUint32(24,sr,true); v.setUint32(28,sr*2,true);
-    v.setUint16(32,2,true);  v.setUint16(34,16,true);
-    ws(36,'data'); v.setUint32(40,ds,true);
-    for (let i=0;i<samples.length;i++) {
-        const s = Math.max(-1,Math.min(1,samples[i]));
-        v.setInt16(44+i*2, s<0?s*0x8000:s*0x7FFF, true);
-    }
-    return buf;
-}
+    <!-- Start / End buttons -->
+    <div class="btn-row">
+      <button class="btn start" id="start-btn" onclick="startCall()">▶ Start Call</button>
+      <button class="btn end"   id="end-btn"   onclick="endCall()" disabled>■ End Call</button>
+    </div>
 
-async function toWav(blob) {
-    try {
-        if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
-        if (audioCtx.state==='suspended') await audioCtx.resume();
-        const decoded = await audioCtx.decodeAudioData(await blob.arrayBuffer());
-        let ch = decoded.getChannelData(0);
-        if (decoded.sampleRate !== 16000) {
-            const ratio = decoded.sampleRate / 16000;
-            const out   = new Float32Array(Math.round(ch.length/ratio));
-            for (let i=0;i<out.length;i++) out[i] = ch[Math.round(i*ratio)];
-            ch = out;
-        }
-        return new Blob([encodeWAV(ch,16000)],{type:'audio/wav'});
-    } catch(e) { return blob; }
-}
+    <!-- iOS mic button (shown after call starts on iOS) -->
+    <div class="mic-wrap" id="mic-wrap">
+      <div class="mic-ring r1"></div>
+      <div class="mic-ring r2"></div>
+      <button id="mic-btn" class="disabled" disabled>🎙</button>
+    </div>
 
-function bestMime() {
-    for (const t of ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg','']) {
-        if (!t||(window.MediaRecorder&&MediaRecorder.isTypeSupported(t))) return t;
-    }
+    <!-- Chat -->
+    <div class="chat-box" id="transcript">
+      <div class="placeholder" id="transcript-placeholder">Your conversation will appear here</div>
+    </div>
+
+    <!-- Info -->
+    <div class="info-strip">
+      <div class="chip" id="chip-platform">Detecting…</div>
+      <div class="chip" id="chip-codec">Codec: —</div>
+      <div class="chip">IST Admissions AI</div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+  /* ═══════════════════════════════════════════════
+     STATE
+  ═══════════════════════════════════════════════ */
+  let sessionId       = null;
+  let mediaRecorder   = null;
+  let recordingChunks = [];
+  let isRecording     = false;
+  let callActive      = false;
+  let mimeType        = 'audio/webm';
+  let currentAudio    = null;
+
+  const isIOS     = /iphone|ipad|ipod|crios|fxios/i.test(navigator.userAgent);
+  const isAndroid = /android/i.test(navigator.userAgent);
+  const useVAD    = !isIOS;
+
+  function detectMimeType() {
+    const candidates = isIOS
+      ? ['audio/mp4','audio/aac','audio/mpeg','audio/webm;codecs=opus','audio/webm']
+      : ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg','audio/mp4'];
+    for (const m of candidates)
+      if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m;
     return '';
-}
+  }
 
-// ═══════════════════════════════════════
-// AUDIO UNLOCK
-// ═══════════════════════════════════════
-async function unlockAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
-    if (audioCtx.state==='suspended') { try { await audioCtx.resume(); } catch(_){} }
-    try {
-        const b=audioCtx.createBuffer(1,1,16000), s=audioCtx.createBufferSource();
-        s.buffer=b; s.connect(audioCtx.destination); s.start(0);
-    } catch(_){}
-}
+  function mimeToExt(mime) {
+    if (mime.includes('mp4')||mime.includes('aac')||mime.includes('m4a')) return 'mp4';
+    if (mime.includes('ogg'))  return 'ogg';
+    if (mime.includes('mpeg')) return 'mp3';
+    return 'webm';
+  }
 
-// ═══════════════════════════════════════
-// VAD CONTROL
-// ═══════════════════════════════════════
-function startVAD() {
-    if (!vadInstance || !isCallActive || requestInFlight) return;
-    try { vadInstance.start(); } catch(_){}
-    setStatus('active', agentSpeaking ? '<strong>Listening</strong> — Interrupt anytime' : '<strong>Listening</strong> — Speak your question');
-}
+  document.getElementById('chip-platform').textContent =
+    isIOS ? 'Platform: iOS' : isAndroid ? 'Platform: Android' : 'Platform: Desktop';
 
-function stopVAD() {
-    if (!vadInstance) return;
-    try { vadInstance.pause(); } catch(_){}
-}
+  /* ═══════════════════════════════════════════════
+     UI HELPERS
+  ═══════════════════════════════════════════════ */
+  function setStatus(mode, label) {
+    const dot  = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    dot.className  = 'status-dot ' + mode;
+    text.className = mode === 'offline' ? 'offline' : '';
+    text.textContent = label;
+  }
 
-// Called after TTS finishes — adds cooldown to prevent speaker bleed
-// from immediately triggering VAD (echo of the agent's own voice)
-function resumeVADAfterSpeech() {
-    if (vadCooldownTimer) clearTimeout(vadCooldownTimer);
-    // 400ms cooldown: enough to clear speaker echo, short enough to feel responsive
-    vadCooldownTimer = setTimeout(() => {
-        vadCooldownTimer = null;
-        startVAD();
-    }, 400);
-}
+  function showToast(msg, dur = 2800) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), dur);
+  }
 
-// ═══════════════════════════════════════
-// PLAYBACK
-// ═══════════════════════════════════════
-function playAudio(url, onDone) {
-    stopCurrentAudio();
+  function setMicState(state) {
+    const btn  = document.getElementById('mic-btn');
+    const wrap = document.getElementById('mic-wrap');
+    btn.className = ''; wrap.className = 'mic-wrap';
+    if (state === 'idle')      { btn.classList.add('disabled'); btn.disabled = true;  btn.textContent = '🎙'; }
+    else if (state === 'ready'){ btn.disabled = false; btn.textContent = '🎙'; }
+    else if (state === 'speaking') { btn.disabled = false; btn.textContent = '🎙'; }
+    else if (state === 'recording'){ btn.classList.add('recording'); wrap.classList.add('recording'); btn.disabled = false; btn.textContent = '⏹'; }
+    else if (state === 'thinking') { btn.classList.add('disabled'); btn.disabled = true; btn.textContent = '⏳'; }
+  }
 
-    // Keep VAD RUNNING during TTS for barge-in (user can interrupt).
-    // onSpeechStart will stop TTS; strict thresholds reject background noise.
-    agentSpeaking = true;
-    setStatus('speaking','🔊 <strong>Speaking…</strong> — Say "stop" or interrupt anytime');
+  function addBubble(text, who) {
+    const box = document.getElementById('transcript');
+    const ph  = document.getElementById('transcript-placeholder');
+    if (ph) ph.remove();
+    removeStatusMsg();
+    const div = document.createElement('div');
+    div.className = 'msg ' + who;
+    div.textContent = (who === 'agent' ? '🤖 ' : '🎤 ') + text;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    return div;
+  }
 
-    // Start VAD so user can interrupt; was stopped during sendAudio
-    if (vadReady && !requestInFlight) startVAD();
+  let statusMsgEl = null;
+  function showStatusMsg(text) {
+    removeStatusMsg();
+    const box = document.getElementById('transcript');
+    const ph  = document.getElementById('transcript-placeholder');
+    if (ph) ph.remove();
+    const div = document.createElement('div');
+    div.className = 'msg-status';
+    div.id = 'status-msg';
+    div.innerHTML = '<div class="spinner"></div><span>' + text + '</span>';
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    statusMsgEl = div;
+  }
 
-    const a = new Audio();
-    a.setAttribute('playsinline','true');
-    a.setAttribute('webkit-playsinline','true');
-    a.preload = 'auto';
-    a.src = url;
-    currentAudio = a;
+  function removeStatusMsg() {
+    const el = document.getElementById('status-msg');
+    if (el) el.remove();
+    statusMsgEl = null;
+  }
 
-    const finish = () => {
-        currentAudio = null;
-        agentSpeaking = false;
-        stopVAD();  // Stop immediately to avoid capturing speaker echo
-        if (onDone) onDone();
-        // Resume VAD after cooldown (prevents speaker bleed)
-        if (vadReady && !requestInFlight) resumeVADAfterSpeech();
-        else if (!vadReady && isIOS) {
-            setStatus('active','<strong>Ready</strong> — Hold button to speak');
-        }
-    };
-
-    a.onended = finish;
-    a.onerror = finish;
-
-    const p = a.play();
-    if (p && p.catch) {
-        p.catch(() => {
-            setTimeout(() => {
-                const a2 = new Audio(url);
-                a2.setAttribute('playsinline','true');
-                a2.setAttribute('webkit-playsinline','true');
-                currentAudio = a2;
-                a2.onended = finish; a2.onerror = finish;
-                a2.play().catch(finish);
-            }, 100);
-        });
-    }
-}
-
-function stopCurrentAudio() {
-    if (currentAudio) {
-        try { currentAudio.pause(); currentAudio.src=''; } catch(_){}
-        currentAudio = null;
-    }
-    agentSpeaking = false;
-}
-
-// ═══════════════════════════════════════
-// STATUS
-// ═══════════════════════════════════════
-function setStatus(type, html) {
-    const el=document.getElementById('statusDiv');
-    const tx=document.getElementById('statusText');
-    el.className='status'+(type?' '+type:'');
-    if(tx) tx.innerHTML=html;
-}
-function addMsg(text, cls) {
-    const d=document.createElement('div');
-    d.className='message '+cls; d.textContent=text;
-    const t=document.getElementById('transcript');
-    t.appendChild(d); t.scrollTop=t.scrollHeight;
-}
-function setProcessing(msg) {
-    const s=document.getElementById('transcriptStatus');
-    if(s) s.innerHTML=msg?`<p class="loading"><span class="spinner"></span>${msg}</p>`:'';
-}
-
-// ═══════════════════════════════════════
-// MANUAL MODE (iOS + VAD fallback)
-// ═══════════════════════════════════════
-function showManualMode() {
-    useManualMode = true;
-    const btn = document.getElementById('recordBtn');
-    btn.style.display = 'block';
-    document.getElementById('modeHint').textContent =
-        isIOS ? '📱 iPhone — Hold button to speak, release when done'
-              : '📱 Hold button to speak, release when done';
-
-    btn.addEventListener('touchstart', e => {
-        e.preventDefault();
-        if (!isCallActive||requestInFlight||agentSpeaking||isRecording) return;
-        startRec();
-    }, {passive:false});
-    const stopT = e => { e.preventDefault(); if(isRecording) stopRec(); };
-    btn.addEventListener('touchend',    stopT, {passive:false});
-    btn.addEventListener('touchcancel', stopT, {passive:false});
-    btn.addEventListener('mousedown',  ()=>{ if(!isCallActive||requestInFlight||agentSpeaking||isRecording) return; startRec(); });
-    document.addEventListener('mouseup', ()=>{ if(isRecording) stopRec(); });
-}
-
-function startRec() {
-    if (!stream) return;
-    const mime = bestMime();
-    try {
-        mediaRecorder = new MediaRecorder(stream, mime?{mimeType:mime}:{});
-        recChunks = [];
-        mediaRecorder.ondataavailable = e => { if(e.data.size>0) recChunks.push(e.data); };
-        mediaRecorder.start(100);
-        isRecording = true;
-        document.getElementById('recordBtn').textContent = '🔴 Recording… Release to send';
-        document.getElementById('recordBtn').classList.add('active');
-        setStatus('active','<strong>Recording</strong> — Release when done');
-    } catch(e) { console.error('MediaRecorder error:',e); }
-}
-
-async function stopRec() {
-    if (!isRecording||!mediaRecorder) return;
-    isRecording = false;
-    document.getElementById('recordBtn').textContent = '🎤 Hold to Speak';
-    document.getElementById('recordBtn').classList.remove('active');
-    await new Promise(resolve => {
-        mediaRecorder.onstop = async () => {
-            const raw = new Blob(recChunks,{type:bestMime()||'audio/webm'});
-            if (raw.size < 500) { setStatus('active','<strong>Ready</strong> — Hold button to speak'); resolve(); return; }
-            const wav = await toWav(raw);
-            await sendAudio(wav);
-            resolve();
-        };
-        mediaRecorder.stop();
+  /* ═══════════════════════════════════════════════
+     AUDIO PLAYBACK
+  ═══════════════════════════════════════════════ */
+  function playAudio(url) {
+    return new Promise(resolve => {
+      const audio   = new Audio();
+      audio.preload = 'auto';
+      currentAudio  = audio;
+      if (isIOS) {
+        audio.setAttribute('playsinline','true');
+        audio.setAttribute('webkit-playsinline','true');
+      }
+      audio.onended  = () => { currentAudio = null; resolve(); };
+      audio.onerror  = () => { currentAudio = null; resolve(); };
+      audio.oncanplaythrough = () => audio.play().catch(() => { currentAudio = null; resolve(); });
+      audio.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
     });
-}
+  }
 
-// ═══════════════════════════════════════
-// START CALL
-// ═══════════════════════════════════════
-async function startCall() {
-    await unlockAudio();
-    document.getElementById('startBtn').disabled = true;
-    setStatus('active','<strong>Connecting…</strong>');
-    document.getElementById('transcript').innerHTML =
-        '<p class="loading"><span class="spinner"></span>Connecting…</p><div id="transcriptStatus"></div>';
-
-    // Mic
-    try {
-        stream = await navigator.mediaDevices.getUserMedia({
-            audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}
-        });
-    } catch(e) {
-        let msg = '⚠️ Microphone access denied.';
-        if (e.name==='NotFoundError')   msg = '⚠️ No microphone found.';
-        if (e.name==='NotAllowedError') msg = isIOS
-            ? '⚠️ iPhone: Settings → Safari → Microphone → Allow, then reload.'
-            : '⚠️ Please allow microphone access and reload.';
-        document.getElementById('transcript').innerHTML=`<p style="color:var(--danger);padding:10px;">${msg}</p>`;
-        document.getElementById('startBtn').disabled=false;
-        setStatus('','<strong>Ready</strong> — Click Start to begin');
-        return;
+  function interruptAudio() {
+    if (currentAudio) {
+      currentAudio.onended = null; currentAudio.onerror = null;
+      currentAudio.pause(); currentAudio.src = '';
+      currentAudio = null;
     }
+  }
 
-    // Server session
-    let data;
-    try {
-        const r = await fetch('/api/start_call',{method:'POST'});
-        data = await r.json();
-    } catch(e) {
-        document.getElementById('transcript').innerHTML=
-            '<p style="color:var(--danger);padding:10px;">⚠️ Cannot connect to server.</p>';
-        document.getElementById('startBtn').disabled=false;
-        stream.getTracks().forEach(t=>t.stop());
-        return;
+  /* ═══════════════════════════════════════════════
+     AUDIO QUEUE
+  ═══════════════════════════════════════════════ */
+  let audioQueue = [], queuePlaying = false, queueDoneCallback = null;
+
+  async function drainQueue() {
+    if (queuePlaying) return;
+    queuePlaying = true;
+    while (audioQueue.length > 0 && callActive) {
+      const url = audioQueue.shift();
+      await playAudio(url);
+      if (!currentAudio && audioQueue.length === 0) break;
     }
+    queuePlaying = false;
+    if (queueDoneCallback) { queueDoneCallback(); queueDoneCallback = null; }
+  }
 
-    sessionId = data.session_id;
-    isCallActive = true;
-    document.getElementById('endBtn').disabled = false;
+  function enqueueAudio(url) { audioQueue.push(url); drainQueue(); }
+  function clearQueue() { audioQueue = []; interruptAudio(); queuePlaying = false; }
 
-    // ── VAD init (Android/desktop only; iOS uses manual hold-to-speak) ──────
-    if (!isIOS && typeof vad !== 'undefined') {
-        const vadOpts = {
-                getStream: async () => stream,
+  /* ═══════════════════════════════════════════════
+     VAD  (Android / Desktop)
+  ═══════════════════════════════════════════════ */
+  let vadStream=null, vadAudioCtx=null, vadAnalyser=null;
+  let vadRecorder=null, vadChunks=[];
+  let vadActive=false, vadSpeaking=false, vadPaused=false;
+  let vadSilenceTimer=null, vadSpeakTimer=null, vadAnimFrame=null;
+  let vadSpeechStart=0;
 
-                // onSpeechStart: BARGE-IN — user interrupts agent.
-                // Stop TTS immediately so we can listen to their query.
-                onSpeechStart: () => {
-                    if (agentSpeaking) {
-                        stopCurrentAudio();
-                        setStatus('heard','🎤 <strong>Interrupted — listening…</strong>');
-                    } else {
-                        setStatus('heard','🎤 <strong>Heard you…</strong>');
-                    }
-                },
+  const VAD_SPEECH_THRESHOLD  = 0.010;
+  const VAD_SPEECH_CONFIRM_MS = 250;
+  const VAD_SILENCE_MS        = 1300;
+  const VAD_MIN_SPEECH_MS     = 400;
 
-                // onSpeechEnd: fires when VAD detects silence after speech.
-                // Sends audio to server. requestInFlight guards against double-send.
-                // audio.length < 4800 = <300ms, ignore clicks/door slams.
-                onSpeechEnd: async (audio) => {
-                    if (!isCallActive || requestInFlight) return;
-                    if (audio.length < 4800) return;  // < 300ms → noise, ignore
-                    const blob = new Blob([encodeWAV(audio,16000)],{type:'audio/wav'});
-                    await sendAudio(blob);
-                },
+  function getRMS(data) {
+    let s=0;
+    for (let i=0;i<data.length;i++) { const v=(data[i]-128)/128; s+=v*v; }
+    return Math.sqrt(s/data.length);
+  }
 
-                // ── VAD THRESHOLDS (noise rejection: doors, typing, background voices) ──
-                // positiveSpeechThreshold: must be very confident it's real speech.
-                // 0.88 = strict — rejects background TV, distant voices, doors, typing.
-                positiveSpeechThreshold: 0.88,
-                negativeSpeechThreshold: 0.38,
+  async function startVAD() {
+    if (!useVAD || vadActive) return;
+    try {
+      vadStream   = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      vadAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const src   = vadAudioCtx.createMediaStreamSource(vadStream);
+      vadAnalyser = vadAudioCtx.createAnalyser();
+      vadAnalyser.fftSize = 256;
+      src.connect(vadAnalyser);
+      mimeType = detectMimeType();
+      document.getElementById('chip-codec').textContent =
+        'Codec: ' + (mimeType ? mimeType.split('/')[1].split(';')[0].toUpperCase() : 'default');
+      vadActive = true; vadPaused = false; vadSpeaking = false;
+      vadLoop();
+      setStatus('active', 'Listening — speak your question');
+    } catch(err) {
+      showToast('🎙 Microphone permission required');
+    }
+  }
 
-                // minSpeechMs: <300ms = door slam, clap, cough → ignore
-                minSpeechMs: 300,
-                // redemptionMs: 500ms silence ends utterance (faster than 1400 default)
-                redemptionMs: 500,
-                // preSpeechPadMs: capture start of question
-                preSpeechPadMs: 200,
+  function stopVAD() {
+    vadActive = false;
+    cancelAnimationFrame(vadAnimFrame);
+    clearTimeout(vadSilenceTimer); clearTimeout(vadSpeakTimer);
+    if (vadRecorder && vadRecorder.state !== 'inactive') vadRecorder.stop();
+    if (vadStream) { vadStream.getTracks().forEach(t=>t.stop()); vadStream=null; }
+    if (vadAudioCtx) { vadAudioCtx.close(); vadAudioCtx=null; }
+    vadSpeaking=false; vadPaused=false;
+  }
 
-                // Fallback for Android/Chrome where AudioWorklet can fail
-                processorType: 'auto',
-                onnxWASMBasePath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/',
-                baseAssetPath:    'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/'
-            };
-        try {
-            vadInstance = await vad.MicVAD.new(vadOpts);
-            vadReady = true;
-            console.log('VAD initialized OK');
-        } catch(e) {
-            console.warn('VAD init failed, retrying with ScriptProcessor:', e);
-            try {
-                vadOpts.processorType = 'ScriptProcessor';
-                vadInstance = await vad.MicVAD.new(vadOpts);
-                vadReady = true;
-                console.log('VAD initialized OK (ScriptProcessor fallback)');
-            } catch(e2) {
-                console.warn('VAD init failed → manual mode:', e2);
+  function pauseVAD() {
+    vadPaused = true;
+    if (vadRecorder && vadRecorder.state !== 'inactive') vadRecorder.stop();
+    vadSpeaking = false;
+    clearTimeout(vadSilenceTimer); clearTimeout(vadSpeakTimer);
+  }
+
+  function resumeVAD() {
+    if (!vadActive) return;
+    vadPaused=false; vadSpeaking=false;
+    setStatus('active', 'Listening — speak your question');
+  }
+
+  function vadLoop() {
+    if (!vadActive) return;
+    const data = new Uint8Array(vadAnalyser.fftSize);
+    vadAnalyser.getByteTimeDomainData(data);
+    const rms = getRMS(data);
+    if (!vadPaused) {
+      if (!vadSpeaking) {
+        if (rms > VAD_SPEECH_THRESHOLD) {
+          if (!vadSpeakTimer) {
+            vadSpeakTimer = setTimeout(() => {
+              vadSpeakTimer = null;
+              if (vadPaused || !vadActive) return;
+              vadStartCapture();
+            }, VAD_SPEECH_CONFIRM_MS);
+          }
+        } else { clearTimeout(vadSpeakTimer); vadSpeakTimer=null; }
+      } else {
+        if (rms < VAD_SPEECH_THRESHOLD) {
+          if (!vadSilenceTimer) {
+            vadSilenceTimer = setTimeout(() => {
+              vadSilenceTimer=null;
+              if (!vadSpeaking||vadPaused) return;
+              vadStopCapture();
+            }, VAD_SILENCE_MS);
+          }
+        } else { clearTimeout(vadSilenceTimer); vadSilenceTimer=null; }
+      }
+    }
+    vadAnimFrame = requestAnimationFrame(vadLoop);
+  }
+
+  function vadStartCapture() {
+    if (!vadStream||vadSpeaking||vadPaused) return;
+    vadSpeaking=true; vadChunks=[]; vadSpeechStart=Date.now();
+    const opts = mimeType ? {mimeType} : {};
+    vadRecorder = new MediaRecorder(vadStream, opts);
+    vadRecorder.ondataavailable = e => { if (e.data&&e.data.size>0) vadChunks.push(e.data); };
+    vadRecorder.onstop = vadHandleStop;
+    vadRecorder.start(250);
+    isRecording=true;
+    setStatus('recording', 'Recording…');
+  }
+
+  function vadStopCapture() {
+    if (!vadRecorder||vadRecorder.state==='inactive') return;
+    vadSpeaking=false; isRecording=false;
+    vadRecorder.stop();
+    clearTimeout(vadSilenceTimer); vadSilenceTimer=null;
+  }
+
+  async function vadHandleStop() {
+    const duration = Date.now() - vadSpeechStart;
+    if (duration < VAD_MIN_SPEECH_MS || vadChunks.length===0) {
+      isRecording=false;
+      if (!vadPaused&&callActive) resumeVAD();
+      return;
+    }
+    pauseVAD();
+    setStatus('thinking', 'Processing…');
+    showStatusMsg('Thinking…');
+    const ext  = mimeToExt(mimeType);
+    const blob = new Blob(vadChunks, {type: mimeType||'audio/webm'});
+    if (blob.size < 500) {
+      showToast('Audio too short, try again');
+      if (callActive) resumeVAD();
+      return;
+    }
+    await sendAudioStream(blob, ext);
+  }
+
+  /* ═══════════════════════════════════════════════
+     SSE STREAMING  (Android / Desktop)
+  ═══════════════════════════════════════════════ */
+  async function sendAudioStream(blob, ext) {
+    const form = new FormData();
+    form.append('session_id', sessionId);
+    form.append('audio', blob, `recording.${ext}`);
+
+    let agentBubble=null, agentFullText='';
+    audioQueue=[]; queuePlaying=false;
+
+    try {
+      const res = await fetch('/api/query_stream', {method:'POST', body:form});
+      if (!res.ok) throw new Error('Server error');
+      const reader = res.body.getReader();
+      const decoder= new TextDecoder();
+      let buffer='';
+
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream:true});
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let event;
+          try { event = JSON.parse(line.slice(6)); } catch { continue; }
+
+          if (event.type === 'transcript') {
+            removeStatusMsg();
+            addBubble(event.text, 'user');
+            showStatusMsg('Speak your next question…');
+
+          } else if (event.type === 'sentence') {
+            agentFullText += (agentFullText ? ' ' : '') + event.text;
+            if (!agentBubble) {
+              removeStatusMsg();
+              agentBubble = addBubble(event.text, 'agent');
+            } else {
+              agentBubble.textContent = '🤖 ' + agentFullText;
+              document.getElementById('transcript').scrollTop = 99999;
             }
+            setStatus('active', 'Speaking…');
+            enqueueAudio(event.audio_url);
+
+          } else if (event.type === 'error') {
+            showToast('⚠️ ' + event.text);
+
+          } else if (event.type === 'done') {
+            if (queuePlaying || audioQueue.length > 0) {
+              queueDoneCallback = afterAgentDone;
+            } else {
+              afterAgentDone();
+            }
+          }
         }
+      }
+    } catch(err) {
+      showToast('Network error. Please try again.');
+      afterAgentDone();
     }
+  }
 
-    // Manual "Hold to Speak" only on iPhone; Android/Web use hands-free VAD
-    if (!vadReady) {
-        if (isIOS) {
-            showManualMode();
-        } else {
-            addMsg('⚠️ Voice detection unavailable. Please refresh the page and try again.', 'agent-msg');
-            setStatus('','<strong>Error</strong> — Voice detection failed');
-        }
+  function afterAgentDone() {
+    removeStatusMsg();
+    if (callActive) {
+      resumeVAD();
+      showStatusMsg('Speak your next question…');
     }
+  }
 
-    // ── Greet ───────────────────────────────────────────────────────────────
-    document.getElementById('transcript').innerHTML =
-        '<div class="message agent-msg">🤖 Hello, this is Institute of Space Technology. How can I help you today?</div>' +
-        '<div id="transcriptStatus"><p class="loading" style="margin-top:8px;">Playing greeting…</p></div>';
-
-    if (data.greeting_audio_url) {
-        // Play greeting — VAD runs for barge-in (user can interrupt)
-        playAudio(data.greeting_audio_url, () => {
-            setProcessing(vadReady ? 'Speak your question…' : (isIOS ? 'Hold the button and speak your question…' : ''));
-        });
-    } else {
-        agentSpeaking = false;
-        if (vadReady) resumeVADAfterSpeech();
-        else if (isIOS) setStatus('active','<strong>Ready</strong> — Hold the button and speak');
-    }
-}
-
-// ═══════════════════════════════════════
-// SEND AUDIO
-// ═══════════════════════════════════════
-async function sendAudio(blob) {
-    if (!sessionId||!isCallActive) return;
-
-    requestInFlight = true;
-    stopVAD();  // Keep VAD off during server round-trip
-    setProcessing('Processing…');
-    setStatus('active','<strong>Processing…</strong>');
-
-    const ctrl  = new AbortController();
-    const tid   = setTimeout(()=>ctrl.abort(), 50000);
-    // Show "taking a moment" only after 15s — reduces perceived slowness
-    const longT = setTimeout(()=>{ if(requestInFlight) setProcessing('Taking a moment, please wait…'); }, 15000);
+  /* ═══════════════════════════════════════════════
+     START CALL
+  ═══════════════════════════════════════════════ */
+  async function startCall() {
+    document.getElementById('start-btn').disabled = true;
+    setStatus('thinking', 'Connecting…');
 
     try {
-        const fd = new FormData();
-        fd.append('session_id', sessionId);
-        fd.append('audio', blob, 'audio.wav');
+      const res  = await fetch('/api/start_call', {method:'POST'});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error||'Start failed');
 
-        const res  = await fetch('/api/query',{method:'POST',body:fd,signal:ctrl.signal});
-        clearTimeout(tid); clearTimeout(longT);
-        const data = await res.json();
+      sessionId=data.session_id; callActive=true;
+      document.getElementById('end-btn').disabled = false;
 
-        if (!res.ok || data.error) {
-            const msg = (data&&data.error)||'Something went wrong. Try again.';
-            if (data&&data.user_text) addMsg('🎤 '+data.user_text,'user-msg');
-            addMsg('🤖 '+msg,'agent-msg');
-            setProcessing('Speak your question again…');
-            finishRequest();
-            return;
-        }
+      if (data.greeting_audio_url) {
+        setStatus('active', 'Speaking…');
+        await playAudio(data.greeting_audio_url);
+      }
 
-        if (data.user_text) addMsg('🎤 '+data.user_text,'user-msg');
+      addBubble('Hello, this is Institute of Space Technology. How can I help you today?', 'agent');
 
-        if (data.audio_url && data.response) {
-            setProcessing('');
-            addMsg('🤖 '+data.response,'agent-msg');
-            requestInFlight = false;  // Clear before playback so barge-in works
-            playAudio(data.audio_url, () => {
-                setProcessing(vadReady ? 'Speak your next question…' : (isIOS ? 'Hold button to speak…' : ''));
-            });
-        } else if (data.response) {
-            setProcessing('');
-            addMsg('🤖 '+data.response,'agent-msg');
-            finishRequest();
-        } else {
-            finishRequest();
-        }
+      if (useVAD) {
+        document.getElementById('mic-wrap').style.display = 'none';
+        showStatusMsg('Speak your next question…');
+        await startVAD();
+      } else {
+        // iOS: show mic button
+        document.getElementById('mic-wrap').style.display = 'flex';
+        setMicState('ready');
+        setStatus('active', 'Connected — tap mic to speak');
+        showStatusMsg('Tap the mic button to speak');
+      }
 
-    } catch(e) {
-        clearTimeout(tid); clearTimeout(longT);
-        const msg = e.name==='AbortError'?'Request timed out. Try again.':e.message;
-        addMsg('⚠️ '+msg,'message');
-        setProcessing('Speak your question again…');
-        finishRequest();
+    } catch(err) {
+      showToast('⚠️ Failed to connect. Try again.');
+      setStatus('offline', 'Offline — Click Start to begin');
+      document.getElementById('start-btn').disabled = false;
     }
-}
+  }
 
-function finishRequest() {
-    requestInFlight = false;
-    agentSpeaking   = false;
-    if (vadReady) resumeVADAfterSpeech();
-    else if (isIOS) setStatus('active','<strong>Ready</strong> — Hold button to speak');
-}
-
-// ═══════════════════════════════════════
-// END CALL
-// ═══════════════════════════════════════
-async function endCall() {
-    isCallActive = false;
-    if (vadCooldownTimer) { clearTimeout(vadCooldownTimer); vadCooldownTimer=null; }
-    stopCurrentAudio();
-    stopVAD();
-    if (isRecording&&mediaRecorder) { try{mediaRecorder.stop();}catch(_){} isRecording=false; }
-    if (vadInstance) { try{vadInstance.destroy();}catch(_){} vadInstance=null; }
-    if (stream) { stream.getTracks().forEach(t=>t.stop()); stream=null; }
-    if (sessionId) {
-        try { await fetch('/api/end_call',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId})}); } catch(_){}
+  /* ═══════════════════════════════════════════════
+     iOS MANUAL RECORDING
+  ═══════════════════════════════════════════════ */
+  document.getElementById('mic-btn').addEventListener('click', () => {
+    if (!callActive||useVAD) return;
+    if (isRecording) stopRecording();
+    else {
+      if (currentAudio) { interruptAudio(); showToast('Interrupted — speak your question'); }
+      startRecording();
     }
-    requestInFlight=false; vadReady=false;
-    document.getElementById('endBtn').disabled   = true;
-    document.getElementById('startBtn').disabled = false;
-    document.getElementById('recordBtn').style.display = 'none';
-    document.getElementById('modeHint').textContent = '';
-    useManualMode = false;
-    setStatus('','<strong>Ended</strong> — Click Start to begin again');
-    addMsg('✓ Call ended. Click Start to begin a new call.','agent-msg');
-}
+  });
 
-// ═══════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════
-window.addEventListener('load', () => {
-    document.getElementById('startBtn').focus();
-    document.getElementById('modeHint').textContent = isIOS
-        ? '📱 iPhone — tap Start, then hold button to speak'
-        : '📱 Android/Web — tap Start, then speak naturally (no button needed)';
-    const unlock = () => {
-        if (!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
-        if (audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
-    };
-    document.addEventListener('touchstart', unlock, {once:true,passive:true});
-    document.addEventListener('click',      unlock, {once:true});
-});
-</script>
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});
+      mimeType = detectMimeType();
+      document.getElementById('chip-codec').textContent =
+        'Codec: ' + (mimeType ? mimeType.split('/')[1].split(';')[0].toUpperCase() : 'default');
+      const options = mimeType ? {mimeType} : {};
+      mediaRecorder = new MediaRecorder(stream, options);
+      recordingChunks=[];
+      mediaRecorder.ondataavailable = e => { if (e.data&&e.data.size>0) recordingChunks.push(e.data); };
+      mediaRecorder.onstop = handleRecordingStop_iOS;
+      mediaRecorder.start(1000);
+      isRecording=true;
+      setMicState('recording');
+      setStatus('recording', 'Recording…');
+      removeStatusMsg();
+    } catch(err) {
+      showToast(err.name==='NotAllowedError' ? '🎙 Microphone permission denied' : '🎙 Could not access microphone');
+    }
+  }
+
+  function stopRecording() {
+    if (!mediaRecorder||mediaRecorder.state==='inactive') return;
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(t=>t.stop());
+    isRecording=false;
+  }
+
+  async function handleRecordingStop_iOS() {
+    setMicState('thinking'); setStatus('thinking', 'Processing…');
+    showStatusMsg('Thinking…');
+    const ext  = mimeToExt(mimeType);
+    const blob = new Blob(recordingChunks, {type: mimeType||'audio/webm'});
+    if (blob.size < 500) {
+      showToast('Recording too short — please try again');
+      setMicState('ready'); setStatus('active', 'Connected — tap mic to speak');
+      removeStatusMsg(); showStatusMsg('Tap the mic button to speak');
+      return;
+    }
+    const form = new FormData();
+    form.append('session_id', sessionId);
+    form.append('audio', blob, `recording.${ext}`);
+    try {
+      const res  = await fetch('/api/query', {method:'POST', body:form});
+      const data = await res.json();
+      if (!res.ok||data.error) {
+        showToast('⚠️ ' + (data.error||'Server error'));
+      } else {
+        if (data.user_text) addBubble(data.user_text, 'user');
+        if (data.response)  addBubble(data.response, 'agent');
+        if (data.audio_url) {
+          setMicState('speaking'); setStatus('active', 'Speaking… (tap 🎙 to interrupt)');
+          showStatusMsg('Speaking…');
+          await playAudio(data.audio_url);
+        }
+      }
+    } catch(err) {
+      showToast('Network error. Please try again.');
+    } finally {
+      if (callActive) {
+        setMicState('ready'); setStatus('active', 'Connected — tap mic to speak');
+        removeStatusMsg(); showStatusMsg('Tap the mic button to speak');
+      }
+    }
+  }
+
+  /* ═══════════════════════════════════════════════
+     END CALL
+  ═══════════════════════════════════════════════ */
+  async function endCall() {
+    if (!callActive) return;
+    callActive=false; clearQueue();
+    if (useVAD) stopVAD(); else if (isRecording) stopRecording();
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('end-btn').disabled   = true;
+    document.getElementById('mic-wrap').style.display = 'none';
+    setMicState('idle');
+    setStatus('offline', 'Ended — Click Start to begin again');
+    removeStatusMsg();
+    try {
+      await fetch('/api/end_call', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({session_id: sessionId})
+      });
+    } catch(_) {}
+    sessionId=null;
+    showToast('Call ended. Thank you!');
+  }
+
+  /* ═══════════════════════════════════════════════
+     INIT
+  ═══════════════════════════════════════════════ */
+  window.addEventListener('load', () => {
+    if (!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)
+      showToast('⚠️ Browser does not support audio recording');
+    setStatus('offline', 'Offline — Click Start to begin');
+    document.getElementById('mic-wrap').style.display = 'none';
+  });
+  </script>
 </body>
 </html>
