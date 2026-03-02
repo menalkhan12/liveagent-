@@ -15,6 +15,37 @@ VOICE = "en-US-JennyNeural"
 _pending: dict = {}
 _pending_lock = threading.Lock()
 
+# Bytes cache: token -> (bytes, expiry_time)
+# iOS Safari prefetches audio URLs, hitting the endpoint twice.
+# After first generation we cache the bytes for 60s so the second fetch works.
+_bytes_cache: dict = {}
+_bytes_cache_lock = threading.Lock()
+_BYTES_TTL = 60  # seconds
+
+
+def _cache_bytes(token: str, data: bytes):
+    with _bytes_cache_lock:
+        _bytes_cache[token] = (data, time.time() + _BYTES_TTL)
+    threading.Thread(target=_evict_bytes_cache, daemon=True).start()
+
+
+def _get_cached_bytes(token: str):
+    with _bytes_cache_lock:
+        entry = _bytes_cache.get(token)
+        if entry and time.time() < entry[1]:
+            return entry[0]
+        if entry:
+            del _bytes_cache[token]
+    return None
+
+
+def _evict_bytes_cache():
+    now = time.time()
+    with _bytes_cache_lock:
+        expired = [k for k, (_, exp) in _bytes_cache.items() if now >= exp]
+        for k in expired:
+            del _bytes_cache[k]
+
 
 def generate_tts(text: str, session_id: str) -> str:
     """

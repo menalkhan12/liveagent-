@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 from rag import generate_answer, initialize_rag
 from stt import transcribe_audio
-from tts import generate_tts, get_and_clear, stream_tts_chunks, get_full_audio_bytes
+from tts import generate_tts, get_and_clear, stream_tts_chunks, get_full_audio_bytes, _cache_bytes, _get_cached_bytes
 from livekit_utils import generate_livekit_token
 from utils import (
     init_call_record,
@@ -72,20 +72,26 @@ def tts_stream(token):
     ios = _is_ios(ua)
 
     if ios:
-        # Buffer entire audio in memory, send as complete response
-        # Fast because: no disk I/O, no file-write wait loop
+        # iOS Safari prefetches audio URLs (hits endpoint twice).
+        # On first hit: generate bytes, cache them, return.
+        # On second hit: token is gone but bytes are in cache — serve from cache.
         logger.info(f"TTS buffered mode (iOS): token {token[:8]}")
         try:
-            audio_bytes = get_full_audio_bytes(text)
+            # Try bytes cache first (handles iOS double-fetch)
+            audio_bytes = _get_cached_bytes(token)
             if not audio_bytes:
-                return Response("TTS generation failed", status=500)
+                # First fetch — generate and cache
+                audio_bytes = get_full_audio_bytes(text)
+                if not audio_bytes:
+                    return Response("TTS generation failed", status=500)
+                _cache_bytes(token, audio_bytes)
             return Response(
                 audio_bytes,
                 mimetype="audio/mpeg",
                 headers={
                     "Content-Length": str(len(audio_bytes)),
                     "Cache-Control": "no-cache",
-                    "Accept-Ranges": "bytes",  # iOS needs this for seeking/playback
+                    "Accept-Ranges": "bytes",
                 }
             )
         except Exception as e:
