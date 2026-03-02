@@ -5,7 +5,6 @@ from groq_utils import get_client, num_keys, GROQ_KEYS
 logger = logging.getLogger(__name__)
 
 # Whisper uses this prompt to bias recognition toward domain-specific vocabulary.
-# The more phrases that match what users actually say, the more accurate transcription will be.
 WHISPER_PROMPT = (
     "IST, Institute of Space Technology, Islamabad. "
     "fee structure, fee of electrical engineering, fee of aerospace engineering, "
@@ -39,6 +38,9 @@ WHISPER_PROMPT = (
     "what is IST, about IST, IST history, IST location, IST accredited"
 )
 
+# Minimum file size to attempt transcription (bytes)
+MIN_AUDIO_BYTES = 1000
+
 
 def transcribe_audio(file_path):
     try:
@@ -46,9 +48,15 @@ def transcribe_audio(file_path):
             logger.error("GROQ_API_KEY / GROQ_API_KEYS not set")
             return ""
 
+        if not os.path.exists(file_path):
+            logger.error(f"Audio file not found: {file_path}")
+            return ""
+
         file_size = os.path.getsize(file_path)
-        if file_size < 500:
-            logger.warning(f"Audio file too small ({file_size} bytes)")
+        logger.info(f"Audio file size: {file_size} bytes, path: {file_path}")
+
+        if file_size < MIN_AUDIO_BYTES:
+            logger.warning(f"Audio file too small ({file_size} bytes) — likely silence or mic not captured. Skipping.")
             return ""
 
         for key_idx in range(num_keys()):
@@ -64,15 +72,34 @@ def transcribe_audio(file_path):
                 text = transcription.text.strip()
                 logger.info(f"Transcription result: '{text}'")
                 return text
+
             except Exception as e:
                 err_str = str(e).lower()
+                logger.error(f"STT error (key {key_idx+1}): {e}")  # Always log full error
+
+                if "400" in err_str or "bad request" in err_str:
+                    # 400 = audio file is empty, corrupt, or unsupported format
+                    # This is NOT a key problem — no point trying other keys
+                    logger.error(
+                        f"Groq returned 400 Bad Request. "
+                        f"Audio file is likely empty, too short, or in wrong format. "
+                        f"File size: {file_size} bytes"
+                    )
+                    return ""
+
                 if "429" in err_str or "rate" in err_str or "quota" in err_str:
                     logger.warning(f"Key {key_idx+1} rate limited, trying next...")
                     continue
+
                 if "401" in err_str or "invalid" in err_str or "unauthorized" in err_str:
-                    logger.warning(f"Key {key_idx+1} invalid, trying next...")
+                    logger.warning(f"Key {key_idx+1} invalid/unauthorized, trying next...")
                     continue
-                raise
+
+                logger.error(f"Unknown STT error on key {key_idx+1}: {e}")
+                continue
+
+        logger.error("All keys exhausted for STT")
+        return ""
 
     except Exception as e:
         logger.error(f"STT transcription error: {e}")
